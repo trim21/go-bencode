@@ -1,150 +1,111 @@
 package decoder
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
-	"unsafe"
+	"strconv"
 
 	"github.com/trim21/go-bencode/internal/errors"
 )
 
 type intDecoder struct {
-	typ        reflect.Type
+	rt         reflect.Type
 	kind       reflect.Kind
 	structName string
 	fieldName  string
 }
 
-func newIntDecoder(typ reflect.Type, structName, fieldName string) *intDecoder {
+func newIntDecoder(rt reflect.Type, structName, fieldName string) *intDecoder {
 	return &intDecoder{
-		typ:        typ,
-		kind:       typ.Kind(),
+		rt:         rt,
+		kind:       rt.Kind(),
 		structName: structName,
 		fieldName:  fieldName,
 	}
 }
 
-func (d *intDecoder) typeError(buf []byte, offset int64) *errors.UnmarshalTypeError {
+func (d *intDecoder) typeError(buf []byte, offset int) *errors.UnmarshalTypeError {
 	return &errors.UnmarshalTypeError{
 		Value:  fmt.Sprintf("number %s", string(buf)),
-		Type:   d.typ,
+		Type:   d.rt,
 		Struct: d.structName,
 		Field:  d.fieldName,
 		Offset: offset,
 	}
 }
 
-var (
-	pow10i64 = [...]int64{
-		1e00, 1e01, 1e02, 1e03, 1e04, 1e05, 1e06, 1e07, 1e08, 1e09,
-		1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18,
-	}
-	pow10i64Len = len(pow10i64)
-)
-
-func (d *intDecoder) parseInt(b []byte) (int64, error) {
-	isNegative := false
-	if b[0] == '-' {
-		b = b[1:]
-		isNegative = true
-	}
-	maxDigit := len(b)
-	if maxDigit > pow10i64Len {
-		return 0, fmt.Errorf("invalid length of number")
-	}
-	sum := int64(0)
-	for i := 0; i < maxDigit; i++ {
-		c := int64(b[i]) - 48
-		digitValue := pow10i64[maxDigit-i-1]
-		sum += c * digitValue
-	}
-	if isNegative {
-		return -1 * sum, nil
-	}
-	return sum, nil
-}
-
-var (
-	numTable = [256]bool{
-		'0': true,
-		'1': true,
-		'2': true,
-		'3': true,
-		'4': true,
-		'5': true,
-		'6': true,
-		'7': true,
-		'8': true,
-		'9': true,
-	}
-)
-
-var (
-	numZeroBuf = []byte{'0'}
-)
-
-func (d *intDecoder) decodeByte(buf []byte, cursor int64) ([]byte, int64, error) {
-	b := (*sliceHeader)(unsafe.Pointer(&buf)).data
-	if char(b, cursor) != 'i' {
+func decodeIntegerBytes(buf []byte, cursor int) ([]byte, int, error) {
+	if buf[cursor] != 'i' {
 		return nil, cursor, errors.ErrExpected("int", cursor)
 	}
-
-	cursor++
-	if char(b, cursor) != ':' {
-		return nil, cursor, errors.ErrExpected("int sep ':'", cursor)
-	}
 	cursor++
 
-	switch char(b, cursor) {
-	case '0':
-		cursor++
-		if char(b, cursor) != ';' {
-			return nil, cursor, errors.ErrExpected("';' end int", cursor)
-		}
-		return numZeroBuf, cursor + 1, nil
-	case '-', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		start := cursor
-		cursor++
-		for numTable[char(b, cursor)] {
-			cursor++
-		}
-		if char(b, cursor) != ';' {
-			return nil, cursor, errors.ErrExpected("';' end int", cursor)
-		}
-		num := buf[start:cursor]
-		return num, cursor + 1, nil
-	case 'N':
-		if err := validateNull(buf, cursor); err != nil {
-			return nil, 0, err
-		}
-		cursor += 2
-		return nil, cursor, nil
-	default:
-		return nil, 0, d.typeError([]byte{char(b, cursor)}, cursor)
+	e := bytes.IndexByte(buf[cursor:], 'e')
+	if e == -1 {
+		return nil, cursor, errors.ErrExpected("int ending 'e'", cursor)
 	}
+
+	if e == 0 {
+		return nil, cursor, errors.ErrExpected("invalid int", cursor)
+	}
+
+	// i ... e
+
+	b := buf[cursor : cursor+e]
+
+	if e == 1 {
+		if b[0] < '0' || b[0] > '9' {
+			return nil, cursor, errors.ErrSyntax("invalid int", cursor)
+		}
+
+		return b, cursor + e + 1, nil
+	}
+
+	// e >= 2
+
+	if b[0] == '-' {
+		if b[1] == '0' {
+			return nil, cursor, errors.ErrSyntax("invalid int '-0' is not allowed", cursor)
+		}
+
+		if !validIntBytes(b[1:]) {
+			return nil, cursor, errors.ErrSyntax("invalid int", cursor)
+		}
+
+		return b, cursor + e + 1, nil
+	}
+
+	if b[0] == '0' {
+		return nil, cursor, errors.ErrSyntax("invalid int", cursor)
+	}
+
+	if !validIntBytes(b) {
+		return nil, cursor, errors.ErrSyntax("invalid int", cursor)
+	}
+
+	return b, cursor + e + 1, nil
 }
 
-func (d *intDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv reflect.Value) (int64, error) {
-	bytes, c, err := d.decodeByte(ctx.Buf, cursor)
+func (d *intDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
+	buf, c, err := decodeIntegerBytes(ctx.Buf, cursor)
 	if err != nil {
 		return 0, err
 	}
-	if bytes == nil {
-		return c, nil
-	}
+
 	cursor = c
 
-	return d.processBytes(bytes, cursor, rv)
+	return d.processBytes(buf, cursor, rv)
 }
 
-func (d *intDecoder) processBytes(bytes []byte, cursor int64, rv reflect.Value) (int64, error) {
-	i64, err := d.parseInt(bytes)
+func (d *intDecoder) processBytes(bytes []byte, cursor int, rv reflect.Value) (int, error) {
+	i64, err := strconv.ParseInt(string(bytes), 10, 64)
 	if err != nil {
 		return 0, d.typeError(bytes, cursor)
 	}
 
 	if rv.OverflowInt(i64) {
-		return 0, errors.ErrOverflow(i64, rv.Type().Kind().String())
+		return 0, errors.ErrValueOverflow(i64, rv.Type().Kind().String())
 	}
 
 	rv.SetInt(i64)
@@ -152,40 +113,11 @@ func (d *intDecoder) processBytes(bytes []byte, cursor int64, rv reflect.Value) 
 	return cursor, nil
 }
 
-func readInt(buf []byte, cursor int64) (int, int64, error) {
-	b := (*sliceHeader)(unsafe.Pointer(&buf)).data
-	if char(b, cursor) != 'i' {
-		return 0, cursor, errors.ErrExpected("'i' to start a int", cursor)
-	}
-
-	cursor++
-	if char(b, cursor) != ':' {
-		return 0, cursor, errors.ErrExpected("int sep ':'", cursor)
-	}
-	cursor++
-
-	switch char(b, cursor) {
-	case '0':
-		cursor++
-		if char(b, cursor) != ';' {
-			return 0, cursor, errors.ErrExpected("';' end int", cursor)
+func validIntBytes(buf []byte) bool {
+	for _, b := range buf[0:] {
+		if b < '0' || b > '9' {
+			return false
 		}
-		cursor++
-		return 0, cursor, nil
-	case '-', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		start := cursor
-		cursor++
-		for numTable[char(b, cursor)] {
-			cursor++
-		}
-
-		if char(b, cursor) != ';' {
-			return 0, cursor, errors.ErrExpected("';' end int", cursor)
-		}
-		value := parseByteStringInt(buf[start:cursor])
-		cursor++
-		return value, cursor, nil
-	default:
-		return 0, 0, errors.ErrExpected("int", cursor)
 	}
+	return true
 }

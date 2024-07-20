@@ -19,7 +19,7 @@ func compileArray(rt reflect.Type) (encoder, error) {
 		return encodeBytes, nil
 	}
 
-	return func(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 		b = append(b, 'l')
 
 		var err error // shadow compiler's error

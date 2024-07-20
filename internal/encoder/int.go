@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func encodeInt(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func encodeInt(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	return appendInt(b, rv.Int()), nil
 }
 

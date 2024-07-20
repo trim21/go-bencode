@@ -5,14 +5,9 @@ import (
 )
 
 type Decoder interface {
-	Decode(ctx *RuntimeContext, cursor, depth int64, rv reflect.Value) (int64, error)
+	Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error)
 }
 
 const (
-	nul                   = '\000'
 	maxDecodeNestingDepth = 10000
-)
-
-var (
-	unmarshalPHPType = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
 )

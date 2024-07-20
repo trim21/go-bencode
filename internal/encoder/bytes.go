@@ -7,7 +7,7 @@ import (
 
 var bytesType = reflect.TypeOf([]byte{})
 
-func encodeBytes(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func encodeBytes(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	b = strconv.AppendInt(b, int64(rv.Len()), 10)
 	b = append(b, ':')
 	return append(b, rv.Bytes()...), nil

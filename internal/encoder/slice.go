@@ -17,7 +17,7 @@ func compileSlice(rt reflect.Type, seen seenMap) (encoder, error) {
 		return nil, err
 	}
 
-	return func(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 		if rv.IsNil() {
 			return appendEmptyList(b), nil
 		}

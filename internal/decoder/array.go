@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/trim21/go-bencode/internal/errors"
@@ -9,6 +10,7 @@ import (
 type arrayDecoder struct {
 	elemType     reflect.Type
 	valueDecoder Decoder
+	aType        reflect.Type
 	alen         int
 	structName   string
 	fieldName    string
@@ -20,6 +22,7 @@ func newArrayDecoder(dec Decoder, elemType reflect.Type, alen int, structName, f
 	return &arrayDecoder{
 		valueDecoder: dec,
 		elemType:     elemType,
+		aType:        reflect.ArrayOf(alen, elemType),
 		alen:         alen,
 		structName:   structName,
 		fieldName:    fieldName,
@@ -27,74 +30,44 @@ func newArrayDecoder(dec Decoder, elemType reflect.Type, alen int, structName, f
 	}
 }
 
-func (d *arrayDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv reflect.Value) (int64, error) {
+func (d *arrayDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	buf := ctx.Buf
 	depth++
 	if depth > maxDecodeNestingDepth {
 		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
 	}
 
-	switch buf[cursor] {
-	case 'N':
-		if err := validateNull(buf, cursor); err != nil {
+	if buf[cursor] != 'l' {
+		return 0, errors.ErrTypeError(d.aType.String(), string(buf[cursor]))
+	}
+
+	rv.SetZero()
+
+	cursor++
+
+	bufSize := len(buf)
+
+	index := 0
+
+	for {
+		if cursor >= bufSize {
+			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
+		}
+
+		if buf[cursor] == 'e' {
+			return cursor + 1, nil
+		}
+
+		if index >= d.alen {
+			return 0, fmt.Errorf("array overflow when decoding list: index %d", cursor)
+		}
+
+		c, err := d.valueDecoder.Decode(ctx, cursor, depth, rv.Index(index))
+		if err != nil {
 			return 0, err
 		}
-		cursor += 2
-		return cursor, nil
-	case 'a':
-		cursor++
-		if buf[cursor] != ':' {
-			return cursor, errors.ErrExpected("':' before array length", cursor)
-		}
 
-		// set zero value first, php array may skip some index
-		rv.SetZero()
-
-		cursor++
-		if buf[cursor] == '0' {
-			err := validateEmptyArray(buf, cursor)
-			if err != nil {
-				return cursor, err
-			}
-			return cursor + 4, nil
-		}
-
-		_, end, err := readLengthInt(buf, cursor-1)
-		if err != nil {
-			return cursor, err
-		}
-		cursor = end + 1
-
-		idx := 0
-		for {
-			currentIndex, end, err := readInt(buf, cursor)
-			if err != nil {
-				return 0, err
-			}
-
-			idx = currentIndex
-			cursor = end
-
-			if idx < d.alen {
-				c, err := d.valueDecoder.Decode(ctx, cursor, depth, rv.Index(idx))
-				if err != nil {
-					return 0, err
-				}
-				cursor = c
-			} else {
-				c, err := skipValue(buf, cursor, depth)
-				if err != nil {
-					return 0, err
-				}
-				cursor = c
-			}
-
-			if buf[cursor] == '}' {
-				cursor++
-				return cursor, nil
-			}
-		}
-	default:
-		return 0, errors.ErrUnexpectedEnd("array", cursor)
+		cursor = c
+		index++
 	}
 }

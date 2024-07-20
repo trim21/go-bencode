@@ -22,7 +22,7 @@ func Marshal(v any) ([]byte, error) {
 	return dst, nil
 }
 
-func encode(ctx *Ctx, b []byte, v any) ([]byte, error) {
+func encode(ctx *Context, b []byte, v any) ([]byte, error) {
 	rv := reflect.ValueOf(v)
 
 	enc, err := compileWithCache(rv.Type())

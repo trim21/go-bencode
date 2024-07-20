@@ -790,7 +790,6 @@ func TestMarshal_anonymous_field(t *testing.T) {
 }
 
 func TestRecursivePanic(t *testing.T) {
-	t.Parallel()
 
 	type O struct {
 		Name string
@@ -824,7 +823,6 @@ func (u userMarshaler) MarshalBencode() ([]byte, error) {
 var _ bencode.Marshaler = userMarshaler{}
 
 func TestUserMarshaler(t *testing.T) {
-	t.Parallel()
 
 	now, err := time.Parse(time.RFC3339, "2024-07-16T01:02:03+08:00")
 	require.NoError(t, err)
@@ -885,7 +883,7 @@ var go118TestCase = []Case{
 }
 
 func TestMarshal_go118_concrete_types(t *testing.T) {
-	t.Parallel()
+
 	for _, data := range go118TestCase {
 		data := data
 		t.Run(data.Name, func(t *testing.T) {
@@ -898,11 +896,11 @@ func TestMarshal_go118_concrete_types(t *testing.T) {
 }
 
 func TestMarshal_go118_interface(t *testing.T) {
-	t.Parallel()
+
 	for _, data := range go118TestCase {
 		data := data
 		t.Run(data.Name, func(t *testing.T) {
-			t.Parallel()
+
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 

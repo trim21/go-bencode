@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func reflectStruct(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func reflectStruct(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	enc, err := compileWithCache(rv.Type())
 	if err != nil {
 		return nil, err

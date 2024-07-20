@@ -7,12 +7,12 @@ import (
 // will need to get type message at marshal time, slow path.
 // should avoid interface for performance thinking.
 func compileInterface(rt reflect.Type) (encoder, error) {
-	return func(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 		return reflectInterfaceValue(ctx, b, rv)
 	}, nil
 }
 
-func reflectInterfaceValue(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func reflectInterfaceValue(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 LOOP:
 	for {
 		switch rv.Kind() {

@@ -37,7 +37,7 @@ func compilePtr(rt reflect.Type, seen seenMap) (encoder, error) {
 }
 
 func deRefNilEncoder(enc encoder) encoder {
-	return func(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 		if rv.IsNil() {
 			return b, errors.New("can't encode nil ptr")
 		}

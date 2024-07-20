@@ -11,7 +11,7 @@ type Marshaler interface {
 }
 
 func compileMarshaler(rt reflect.Type) (encoder, error) {
-	return func(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 		raw, err := rv.Interface().(Marshaler).MarshalBencode()
 		if err != nil {
 			return nil, err

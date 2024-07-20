@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func reflectMap(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func reflectMap(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	rt := rv.Type()
 
 	if rv.IsNil() {

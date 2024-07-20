@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-type encoder func(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error)
+type encoder func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error)
 
 func compileType(rt reflect.Type) (encoder, error) {
 	return compile(rt, seenMap{})

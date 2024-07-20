@@ -1,102 +1,139 @@
 package decoder
 
 import (
+	"fmt"
 	"reflect"
-	"unsafe"
 
 	"github.com/trim21/go-bencode/internal/errors"
+	"github.com/trim21/go-bencode/internal/runtime"
 )
+
+func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDecoder map[reflect.Type]Decoder) (Decoder, error) {
+	if dec, exists := structTypeToDecoder[rt]; exists {
+		return dec, nil
+	}
+	structDec := newStructDecoder(structName, fieldName, map[string]*structFieldSet{})
+	structTypeToDecoder[rt] = structDec
+	structName = rt.Name()
+
+	var allFields []*structFieldSet
+
+	fieldNum := rt.NumField()
+	for i := 0; i < fieldNum; i++ {
+		field := rt.Field(i)
+		if runtime.IsIgnoredStructField(field) {
+			continue
+		}
+
+		if field.Anonymous {
+			if (field.Type.Kind() == reflect.Struct) || (field.Type.Kind() == reflect.Ptr && (field.Type.Elem().Kind() == reflect.Struct)) {
+				return nil, fmt.Errorf("anonymous struct field is not supported: %s", rt.String())
+			}
+		}
+
+		tag := runtime.StructTagFromField(field)
+		dec, err := compile(field.Type, structName, field.Name, structTypeToDecoder)
+		if err != nil {
+			return nil, err
+		}
+
+		var key string
+		if tag.Key != "" {
+			key = tag.Key
+		} else {
+			key = field.Name
+		}
+
+		fieldSet := &structFieldSet{
+			dec:      dec,
+			fieldIdx: i,
+			key:      key,
+		}
+
+		allFields = append(allFields, fieldSet)
+	}
+
+	seen := map[string]bool{}
+	for _, set := range allFields {
+		if seen[set.key] {
+			return nil, fmt.Errorf("found duplicate keys for struct %s: %s", rt.String(), set.key)
+		}
+
+		seen[set.key] = true
+		structDec.fieldMap[set.key] = set
+	}
+
+	delete(structTypeToDecoder, rt)
+
+	return structDec, nil
+}
 
 type structFieldSet struct {
 	dec      Decoder
-	offset   uintptr
 	fieldIdx int
 	key      string
 	err      error
 }
 
 type structDecoder struct {
-	fieldMap      map[string]*structFieldSet
-	stringDecoder *stringDecoder
-	structName    string
-	fieldName     string
+	fieldMap   map[string]*structFieldSet
+	structName string
+	fieldName  string
 }
 
 func newStructDecoder(structName, fieldName string, fieldMap map[string]*structFieldSet) *structDecoder {
 	return &structDecoder{
-		fieldMap:      fieldMap,
-		stringDecoder: newStringDecoder(structName, fieldName),
-		structName:    structName,
-		fieldName:     fieldName,
+		fieldMap:   fieldMap,
+		structName: structName,
+		fieldName:  fieldName,
 	}
 }
 
-// TODO: this can be optimized for small size struct
-func decodeKey(d *structDecoder, buf []byte, cursor int64) (int64, *structFieldSet, error) {
-	key, c, err := d.stringDecoder.decodeByte(buf, cursor)
+func decodeKey(d *structDecoder, buf []byte, cursor int) (int, *structFieldSet, error) {
+	key, c, err := readString(buf, cursor)
 	if err != nil {
 		return 0, nil, err
 	}
-	cursor = c
 
 	// go compiler will not escape key
 	field, exists := d.fieldMap[string(key)]
 	if !exists {
-		return cursor, nil, nil
+		return c, nil, nil
 	}
 
-	return cursor, field, nil
+	return c, field, nil
 }
 
-func (d *structDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv reflect.Value) (int64, error) {
-	buf := ctx.Buf
+func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	depth++
 	if depth > maxDecodeNestingDepth {
-		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
-	}
-	buflen := int64(len(buf))
-	b := (*sliceHeader)(unsafe.Pointer(&buf)).data
-	switch char(b, cursor) {
-	case 'N':
-		if err := validateNull(buf, cursor); err != nil {
-			return 0, err
-		}
-		cursor += 2
-		return cursor, nil
-	case 'O':
-		// O:8:"stdClass":1:{s:1:"a";s:1:"q";}
-		end, err := skipClassName(buf, cursor)
-		if err != nil {
-			return cursor, err
-		}
-		cursor = end
-		fallthrough
-	case 'a':
-		cursor++
-		if buf[cursor] != ':' {
-			return 0, errors.ErrInvalidBeginningOfValue(char(b, cursor), cursor)
-		}
-	default:
-		return 0, errors.ErrInvalidBeginningOfValue(char(b, cursor), cursor)
+		return 0, errors.ErrExceededMaxDepth(ctx.Buf[cursor], cursor)
 	}
 
-	// skip  :${length}:
-	end, err := skipLengthWithBothColon(buf, cursor)
-	if err != nil {
-		return cursor, err
-	}
-	cursor = end
-	if buf[cursor] != '{' {
-		return 0, errors.ErrInvalidBeginningOfArray(char(b, cursor), cursor)
+	buf := ctx.Buf
+
+	bufSize := len(buf)
+
+	if cursor+2 > bufSize {
+		return 0, errors.ErrSyntax("buffer overflow when parsing directory", cursor)
 	}
 
-	cursor++
-	if buf[cursor] == '}' {
+	if buf[cursor] == 'd' {
 		cursor++
-		return cursor, nil
+	} else {
+		return 0, errors.ErrInvalidBeginningOfValue(buf[cursor], cursor)
 	}
 
 	for {
+		if cursor >= bufSize {
+			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
+		}
+
+		if buf[cursor] == 'e' {
+			cursor++
+			return cursor, nil
+		}
+
 		c, field, err := decodeKey(d, buf, cursor)
 		if err != nil {
 			return 0, err
@@ -104,30 +141,25 @@ func (d *structDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv refl
 
 		cursor = c
 
-		// cursor++
-		if cursor >= buflen {
+		if cursor >= bufSize {
 			return 0, errors.ErrExpected("object value after colon", cursor)
 		}
-		if field != nil {
-			if field.err != nil {
-				return 0, field.err
-			}
-			c, err := field.dec.Decode(ctx, cursor, depth, rv.Field(field.fieldIdx))
+
+		if field == nil {
+			cursor, err = skipValue(buf, cursor, depth)
 			if err != nil {
 				return 0, err
 			}
-			cursor = c
-		} else {
-			c, err := skipValue(buf, cursor, depth)
-			if err != nil {
-				return 0, err
-			}
-			cursor = c
+			continue
 		}
 
-		if char(b, cursor) == '}' {
-			cursor++
-			return cursor, nil
+		if field.err != nil {
+			return 0, field.err
+		}
+
+		cursor, err = field.dec.Decode(ctx, cursor, depth, rv.Field(field.fieldIdx))
+		if err != nil {
+			return 0, err
 		}
 	}
 }

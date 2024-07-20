@@ -7,25 +7,25 @@ import (
 )
 
 type invalidDecoder struct {
-	typ        reflect.Type
+	rt         reflect.Type
 	kind       reflect.Kind
 	structName string
 	fieldName  string
 }
 
-func newInvalidDecoder(typ reflect.Type, structName, fieldName string) *invalidDecoder {
+func newInvalidDecoder(rt reflect.Type, structName, fieldName string) *invalidDecoder {
 	return &invalidDecoder{
-		typ:        typ,
-		kind:       typ.Kind(),
+		rt:         rt,
+		kind:       rt.Kind(),
 		structName: structName,
 		fieldName:  fieldName,
 	}
 }
 
-func (d *invalidDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv reflect.Value) (int64, error) {
+func (d *invalidDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	return 0, &errors.UnmarshalTypeError{
 		Value:  "object",
-		Type:   d.typ,
+		Type:   d.rt,
 		Offset: cursor,
 		Struct: d.structName,
 		Field:  d.fieldName,

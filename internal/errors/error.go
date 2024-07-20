@@ -23,17 +23,17 @@ func (e *InvalidUnmarshalError) Error() string {
 // A SyntaxError is a description of a JSON syntax error.
 type SyntaxError struct {
 	msg    string // description of error
-	Offset int64  // error occurred after reading Offset bytes
+	Offset int    // error occurred after reading Offset bytes
 }
 
-func (e *SyntaxError) Error() string { return e.msg }
+func (e *SyntaxError) Error() string { return fmt.Sprintf("%s: index %d", e.msg, e.Offset) }
 
 // An UnmarshalTypeError describes a JSON value that was
 // not appropriate for a value of a specific Go type.
 type UnmarshalTypeError struct {
 	Value  string       // description of JSON value - "bool", "array", "number -5"
 	Type   reflect.Type // type of Go value it could not be assigned to
-	Offset int64        // error occurred after reading Offset bytes
+	Offset int          // error occurred after reading Offset bytes
 	Struct string       // name of the struct type containing the field
 	Field  string       // the full path from root node to the field
 }
@@ -66,43 +66,47 @@ func (e *UnsupportedValueError) Error() string {
 	return fmt.Sprintf("php: unsupported value: %s", e.Str)
 }
 
-func ErrSyntax(msg string, offset int64) *SyntaxError {
+func ErrTypeError(expected string, actually string) error {
+	return fmt.Errorf("expecteing %s, got %s instead", expected, actually)
+}
+
+func ErrSyntax(msg string, offset int) *SyntaxError {
 	return &SyntaxError{msg: msg, Offset: offset}
 }
 
-func ErrExceededMaxDepth(c byte, cursor int64) *SyntaxError {
+func ErrExceededMaxDepth(c byte, cursor int) *SyntaxError {
 	return &SyntaxError{
 		msg:    fmt.Sprintf(`invalid character "%c" exceeded max depth`, c),
 		Offset: cursor,
 	}
 }
 
-func ErrUnexpectedStart(typ string, buf []byte, cursor int64) *SyntaxError {
+func ErrUnexpectedStart(rt string, buf []byte, cursor int) *SyntaxError {
 	return &SyntaxError{
-		msg:    fmt.Sprintf("php: unexpected %c at beginneng of %s", buf[cursor], typ),
+		msg:    fmt.Sprintf("php: unexpected %c at beginneng of %s", buf[cursor], rt),
 		Offset: cursor,
 	}
 }
 
-func ErrUnexpectedEnd(msg string, cursor int64) *SyntaxError {
+func ErrUnexpectedEnd(msg string, cursor int) *SyntaxError {
 	return &SyntaxError{
 		msg:    fmt.Sprintf("php: %s unexpected end of input", msg),
 		Offset: cursor,
 	}
 }
 
-func ErrUnexpectedLength(buf []byte, cursor int64) *SyntaxError {
+func ErrUnexpectedLength(buf []byte, cursor int) *SyntaxError {
 	return &SyntaxError{
 		msg:    fmt.Sprintf("php: unexpected char %c in length", buf[cursor]),
 		Offset: cursor,
 	}
 }
 
-func ErrExpected(msg string, cursor int64) *SyntaxError {
+func ErrExpected(msg string, cursor int) *SyntaxError {
 	return &SyntaxError{msg: fmt.Sprintf("expected %s", msg), Offset: cursor}
 }
 
-func ErrInvalidCharacter(c byte, context string, cursor int64) *SyntaxError {
+func ErrInvalidCharacter(c byte, context string, cursor int) *SyntaxError {
 	if c == 0 {
 		return &SyntaxError{
 			msg:    fmt.Sprintf("php: invalid character as %s", context),
@@ -115,21 +119,14 @@ func ErrInvalidCharacter(c byte, context string, cursor int64) *SyntaxError {
 	}
 }
 
-func ErrInvalidBeginningOfValue(c byte, cursor int64) *SyntaxError {
+func ErrInvalidBeginningOfValue(c byte, cursor int) *SyntaxError {
 	return &SyntaxError{
 		msg:    fmt.Sprintf("invalid character '%c' looking for beginning of value", c),
 		Offset: cursor,
 	}
 }
 
-func ErrInvalidBeginningOfArray(c byte, cursor int64) *SyntaxError {
-	return &SyntaxError{
-		msg:    fmt.Sprintf("invalid character '%c' looking for beginning of array", c),
-		Offset: cursor,
-	}
-}
-
-func ErrOverflow(v any, t string) error {
+func ErrValueOverflow(v any, t string) error {
 	return &overflowError{
 		v: v,
 		t: t,

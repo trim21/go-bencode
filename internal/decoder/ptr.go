@@ -8,38 +8,28 @@ import (
 
 type ptrDecoder struct {
 	dec        Decoder
-	typ        reflect.Type
+	rt         reflect.Type
 	structName string
 	fieldName  string
 }
 
-func newPtrDecoder(dec Decoder, typ reflect.Type, structName, fieldName string) (Decoder, error) {
-	if typ.Kind() == reflect.Ptr {
+func newPtrDecoder(dec Decoder, rt reflect.Type, structName, fieldName string) (Decoder, error) {
+	if rt.Kind() == reflect.Ptr {
 		return nil, &errors.UnsupportedTypeError{
-			Type: reflect.PointerTo(typ),
+			Type: reflect.PtrTo(rt),
 		}
 	}
 	return &ptrDecoder{
 		dec:        dec,
-		typ:        typ,
+		rt:         rt,
 		structName: structName,
 		fieldName:  fieldName,
 	}, nil
 }
 
-func (d *ptrDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv reflect.Value) (int64, error) {
-	buf := ctx.Buf
-	if buf[cursor] == 'N' {
-		if err := validateNull(buf, cursor); err != nil {
-			return 0, err
-		}
-		rv.SetZero()
-		cursor += 2
-		return cursor, nil
-	}
-
+func (d *ptrDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	if rv.IsNil() {
-		np := reflect.New(d.typ)
+		np := reflect.New(d.rt)
 		rv.Set(np)
 	}
 

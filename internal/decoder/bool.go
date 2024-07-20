@@ -15,17 +15,17 @@ func newBoolDecoder(structName, fieldName string) *boolDecoder {
 	return &boolDecoder{structName: structName, fieldName: fieldName}
 }
 
-func (d *boolDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv reflect.Value) (int64, error) {
+func (d *boolDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	buf := ctx.Buf
-	switch buf[cursor] {
-	case 'b':
-		// b:0;
-		// b:1;
+	if cursor > len(buf)-3 {
+		return 0, errors.ErrSyntax("invalid int", cursor)
+	}
 
-		cursor++
-		if buf[cursor] != ':' {
-			return 0, errors.ErrUnexpectedEnd("':' before bool value", cursor)
-		}
+	switch buf[cursor] {
+	case 'i':
+		// i0e;
+		// i1e;
+
 		cursor++
 		switch buf[cursor] {
 		case '0':
@@ -35,18 +35,13 @@ func (d *boolDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv reflec
 		default:
 			return 0, errors.ErrInvalidCharacter(buf[cursor], "bool value", cursor)
 		}
-		cursor++
-		if buf[cursor] != ';' {
-			return 0, errors.ErrUnexpectedEnd("';' end bool value", cursor)
-		}
-		cursor++
-		return cursor, nil
 
-	case 'N':
-		if err := validateNull(buf, cursor); err != nil {
-			return 0, err
+		cursor++
+		if buf[cursor] != 'e' {
+			return 0, errors.ErrUnexpectedEnd("'e' end bool value", cursor)
 		}
-		cursor += 2
+
+		cursor++
 		return cursor, nil
 	}
 

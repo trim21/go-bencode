@@ -26,7 +26,7 @@ type structRecEncoder struct {
 	enc encoder
 }
 
-func (s *structRecEncoder) Encode(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func (s *structRecEncoder) Encode(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	return s.enc(ctx, b, rv)
 }
 
@@ -75,7 +75,7 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 		fieldNames[field.fieldName] = true
 	}
 
-	return func(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 		// shadow compiler's error
 		var err error
 

@@ -41,9 +41,10 @@ func ExampleMarshal() {
 
 func ExampleUnmarshal() {
 	var v struct {
-		Value map[string]string `php:"value" json:"value"`
+		S     map[[20]byte]struct{} `bencode:"s"`
+		Value map[string]string     `bencode:"value" json:"value"`
 	}
-	raw := `a:1:{s:5:"value";a:5:{s:3:"one";s:1:"1";s:3:"two";s:1:"2";s:5:"three";s:1:"3";s:4:"four";s:1:"4";s:4:"five";s:1:"5";}}`
+	raw := `d5:valued4:five1:5ee`
 
 	err := bencode.Unmarshal([]byte(raw), &v)
 	if err != nil {

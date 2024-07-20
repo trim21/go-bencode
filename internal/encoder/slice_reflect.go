@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func reflectSlice(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func reflectSlice(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	rt := rv.Type()
 
 	// not slice of interface, fast path
@@ -33,7 +33,7 @@ func reflectSlice(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
 	return append(b, '}'), nil
 }
 
-func reflectConcreteSlice(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func reflectConcreteSlice(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	enc, err := compileWithCache(rv.Type())
 	if err != nil {
 		return nil, err

@@ -1,123 +1,80 @@
 package decoder
 
 import (
+	"fmt"
 	"reflect"
-	"unsafe"
 
 	"github.com/trim21/go-bencode/internal/errors"
 )
 
 type sliceDecoder struct {
-	stype             reflect.Type // type of slice
+	sType             reflect.Type // type of slice
 	elemType          reflect.Type // type of element
 	isElemPointerType bool
 	valueDecoder      Decoder
-	size              uintptr
 	structName        string
 	fieldName         string
 }
 
-// If use reflect.SliceHeader, data type is uintptr.
-// In this case, Go compiler cannot trace reference created by newArray().
-// So, define using unsafe.Pointer as data type
-type sliceHeader struct {
-	data unsafe.Pointer
-	len  int
-	cap  int
-}
-
-func newSliceDecoder(dec Decoder, elemType reflect.Type, size uintptr, structName, fieldName string) *sliceDecoder {
+func newSliceDecoder(dec Decoder, elemType reflect.Type, structName, fieldName string) *sliceDecoder {
 	return &sliceDecoder{
 		valueDecoder:      dec,
 		elemType:          elemType,
-		stype:             reflect.SliceOf(elemType),
+		sType:             reflect.SliceOf(elemType),
 		isElemPointerType: elemType.Kind() == reflect.Ptr || elemType.Kind() == reflect.Map,
-		size:              size,
 		structName:        structName,
 		fieldName:         fieldName,
 	}
 }
 
-func (d *sliceDecoder) errNumber(offset int64) *errors.UnmarshalTypeError {
-	return &errors.UnmarshalTypeError{
-		Value:  "number",
-		Type:   reflect.SliceOf(d.elemType),
-		Struct: d.structName,
-		Field:  d.fieldName,
-		Offset: offset,
-	}
-}
-
-func (d *sliceDecoder) Decode(ctx *RuntimeContext, cursor, depth int64, rv reflect.Value) (int64, error) {
+func (d *sliceDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	buf := ctx.Buf
 	depth++
 	if depth > maxDecodeNestingDepth {
 		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
 	}
 
-	switch buf[cursor] {
-	case 'N':
-		if err := validateNull(buf, cursor); err != nil {
+	if buf[cursor] != 'l' {
+		return 0, errors.ErrTypeError(d.sType.String(), string(buf[cursor]))
+	}
+
+	cursor++
+
+	bufSize := len(buf)
+
+	sCap := 8
+	index := 0
+
+	s := reflect.New(d.sType).Elem()
+	s.Set(reflect.MakeSlice(d.sType, sCap, sCap))
+
+	for {
+		if cursor >= bufSize {
+			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
+		}
+
+		if buf[cursor] == 'e' {
+			if index == sCap-1 { // slice is expensive
+				rv.Set(s)
+			} else {
+				rv.Set(s.Slice(0, index))
+			}
+			return cursor + 1, nil
+		}
+
+		if index == sCap {
+			s.Grow(sCap)
+			s.Slice(0, sCap)
+			sCap = sCap * 2
+			s.SetLen(sCap)
+		}
+
+		c, err := d.valueDecoder.Decode(ctx, cursor, depth, s.Index(index))
+		if err != nil {
 			return 0, err
 		}
-		cursor += 2
-		rv.SetZero()
-		return cursor, nil
-	case 'a':
-		cursor++
-		if buf[cursor] != ':' {
-			return cursor, errors.ErrExpected("':' before array length", cursor)
-		}
 
-		cursor++
-		if buf[cursor] == '0' {
-			err := validateEmptyArray(buf, cursor)
-			if err != nil {
-				return cursor, err
-			}
-			rv.SetZero()
-			return cursor + 4, nil
-		}
-
-		arrLen, end, err := readLengthInt(buf, cursor-1)
-		if err != nil {
-			return cursor, err
-		}
-		cursor = end
-
-		if buf[cursor] != '{' {
-			return cursor, errors.ErrInvalidBeginningOfArray(buf[cursor], cursor)
-		}
-		cursor++
-
-		slice := reflect.MakeSlice(d.stype, arrLen, arrLen)
-
-		idx := 0
-		for {
-			currentIndex, end, err := readInt(buf, cursor)
-			if err != nil {
-				return 0, err
-			}
-
-			idx = currentIndex
-			cursor = end
-
-			c, err := d.valueDecoder.Decode(ctx, cursor, depth, slice.Index(idx))
-			if err != nil {
-				return 0, err
-			}
-
-			rv.Set(slice)
-
-			cursor = c
-			if buf[cursor] == '}' {
-				cursor++
-				return cursor, nil
-			}
-		}
-	case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		return 0, d.errNumber(cursor)
-	default:
-		return 0, errors.ErrUnexpectedEnd("slice", cursor)
+		cursor = c
+		index++
 	}
 }

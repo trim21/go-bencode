@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func encodeBool(ctx *Ctx, b []byte, rv reflect.Value) ([]byte, error) {
+func encodeBool(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	b = append(b, 'i')
 
 	if rv.Bool() {
