@@ -17,6 +17,7 @@ type structEncoder struct {
 	encode    encoder
 	fieldName string // field fieldName
 	omitEmpty bool
+	isZero    func(reflect.Value) bool
 	ptr       bool
 }
 
@@ -85,7 +86,7 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 			v := rv.Field(field.index)
 
 			if field.omitEmpty {
-				if v.IsZero() {
+				if field.isZero(v) {
 					continue
 				}
 			}
@@ -155,10 +156,29 @@ func compileStructFieldsEncoders(rt reflect.Type, seen seenMap) ([]structEncoder
 			index:     i,
 			encode:    fieldEncoder,
 			fieldName: cfg.Name(),
+			isZero:    compileIsZero(field.Type),
 			omitEmpty: cfg.IsOmitEmpty,
 			ptr:       isPtrField,
 		})
 	}
 
 	return encoders, nil
+}
+
+type IsZeroValue interface {
+	IsZeroBencodeValue() bool
+}
+
+var isZeroValueType = reflect.TypeOf((*IsZeroValue)(nil)).Elem()
+
+func compileIsZero(rt reflect.Type) func(rv reflect.Value) bool {
+	if rt.Implements(isZeroValueType) {
+		return func(rv reflect.Value) bool {
+			return rv.Interface().(IsZeroValue).IsZeroBencodeValue()
+		}
+	}
+
+	return func(rv reflect.Value) bool {
+		return rv.IsZero()
+	}
 }

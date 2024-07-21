@@ -6,6 +6,10 @@ import (
 
 type RawBytes []byte
 
+func (b RawBytes) IsZeroBencodeValue() bool {
+	return len(b) == 0
+}
+
 func (b *RawBytes) UnmarshalBencode(bytes []byte) error {
 	if b == nil {
 		return errors.New("bencode.RawBytes: UnmarshalBencode on nil pointer")
@@ -20,3 +24,4 @@ func (b RawBytes) MarshalBencode() ([]byte, error) {
 
 var _ Unmarshaler = (*RawBytes)(nil)
 var _ Marshaler = (*RawBytes)(nil)
+var _ IsZeroValue = (*RawBytes)(nil)

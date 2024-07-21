@@ -18,6 +18,9 @@ import (
 var _ bencode.Marshaler = encoder.Marshaler(nil)
 var _ encoder.Marshaler = bencode.Marshaler(nil)
 
+var _ bencode.IsZeroValue = encoder.IsZeroValue(nil)
+var _ encoder.IsZeroValue = bencode.IsZeroValue(nil)
+
 type Container struct {
 	Value any `bencode:"value"`
 }
@@ -896,7 +899,6 @@ func TestMarshal_go118_concrete_types(t *testing.T) {
 }
 
 func TestMarshal_go118_interface(t *testing.T) {
-
 	for _, data := range go118TestCase {
 		data := data
 		t.Run(data.Name, func(t *testing.T) {
@@ -933,4 +935,41 @@ func TestMarshal_Array_nil(t *testing.T) {
 	require.NoError(t, err)
 	expected := `li0ei0ei0ei0ei0ee`
 	test.StringEqual(t, expected, string(actual))
+}
+
+type zeroValuerImpl struct {
+	zero bool
+}
+
+func (z zeroValuerImpl) MarshalBencode() ([]byte, error) {
+	return bencode.Marshal("value")
+}
+
+func (z zeroValuerImpl) IsZeroBencodeValue() bool {
+	return z.zero
+}
+
+var _ bencode.IsZeroValue = zeroValuerImpl{}
+var _ bencode.Marshaler = zeroValuerImpl{}
+
+type structWithZero struct {
+	Z zeroValuerImpl `bencode:"z,omitempty"`
+}
+
+func TestMarshal_marshaler_zero(t *testing.T) {
+	var s = structWithZero{
+		Z: zeroValuerImpl{zero: false},
+	}
+
+	actual, err := bencode.Marshal(s)
+	require.NoError(t, err)
+	test.StringEqual(t, `d1:z5:valuee`, string(actual))
+
+	var s2 = structWithZero{
+		Z: zeroValuerImpl{zero: true},
+	}
+
+	actual, err = bencode.Marshal(s2)
+	require.NoError(t, err)
+	test.StringEqual(t, `de`, string(actual))
 }
