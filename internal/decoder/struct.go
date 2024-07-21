@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 
@@ -89,19 +90,16 @@ func newStructDecoder(structName, fieldName string, fieldMap map[string]*structF
 	}
 }
 
-func decodeKey(d *structDecoder, buf []byte, cursor int) (int, *structFieldSet, error) {
+func decodeKey(d *structDecoder, buf []byte, cursor int) ([]byte, int, *structFieldSet, error) {
 	key, c, err := readString(buf, cursor)
 	if err != nil {
-		return 0, nil, err
+		return nil, 0, nil, err
 	}
 
 	// go compiler will not escape key
-	field, exists := d.fieldMap[string(key)]
-	if !exists {
-		return c, nil, nil
-	}
+	field := d.fieldMap[string(key)]
 
-	return c, field, nil
+	return key, c, field, nil
 }
 
 func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
@@ -124,6 +122,8 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 		return 0, errors.ErrInvalidBeginningOfValue(buf[cursor], cursor)
 	}
 
+	var lastKey []byte
+
 	for {
 		if cursor >= bufSize {
 			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
@@ -134,10 +134,20 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 			return cursor, nil
 		}
 
-		c, field, err := decodeKey(d, buf, cursor)
+		currentKey, c, field, err := decodeKey(d, buf, cursor)
 		if err != nil {
 			return 0, err
 		}
+
+		if lastKey != nil {
+			switch bytes.Compare(lastKey, currentKey) {
+			case 0:
+				return cursor, fmt.Errorf("dictionary conrains duplicated keys %s. index %d", currentKey, cursor)
+			case 1:
+				return cursor, fmt.Errorf("dictionary conrains unordered keys %s, %s. index %d", lastKey, currentKey, cursor)
+			}
+		}
+		lastKey = currentKey
 
 		cursor = c
 

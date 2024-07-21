@@ -46,6 +46,7 @@ func skipList(buf []byte, cursor int, depth int64) (int, error) {
 	}
 }
 
+// TODO: validate keys order
 func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 	depth++
 	if depth > maxDecodeNestingDepth {
@@ -64,6 +65,8 @@ func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 		return 0, errors.ErrInvalidBeginningOfValue(buf[cursor], cursor)
 	}
 
+	var lastKey []byte
+
 	for {
 		if cursor >= bufSize {
 			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
@@ -74,10 +77,20 @@ func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 			return cursor, nil
 		}
 
-		_, c, err := readString(buf, cursor)
+		currentKey, c, err := readString(buf, cursor)
 		if err != nil {
 			return 0, err
 		}
+
+		if lastKey != nil {
+			switch bytes.Compare(lastKey, currentKey) {
+			case 0:
+				return cursor, fmt.Errorf("dictionary conrains duplicated keys %s. index %d", currentKey, cursor)
+			case 1:
+				return cursor, fmt.Errorf("dictionary conrains unordered keys %s, %s. index %d", lastKey, currentKey, cursor)
+			}
+		}
+		lastKey = currentKey
 
 		cursor = c
 

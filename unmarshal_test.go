@@ -555,3 +555,14 @@ func TestUnmarshal_arrayBytes(t *testing.T) {
 
 	require.NoError(t, bencode.Unmarshal([]byte(raw), &v))
 }
+
+func TestUnmarshal_unorderedKey(t *testing.T) {
+	var m map[string]string
+	require.Error(t, bencode.Unmarshal([]byte(`d1:01:01:11:10:0:e`), &m))
+
+	var s struct{}
+	require.Error(t, bencode.Unmarshal([]byte(`d1:01:01:11:10:0:e`), &s))
+
+	var a any
+	require.Error(t, bencode.Unmarshal([]byte(`d1:01:01:11:10:0:e`), &a))
+}

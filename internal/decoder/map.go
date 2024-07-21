@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 
@@ -44,6 +45,7 @@ func newMapDecoder(mapType reflect.Type, keyType reflect.Type, keyDec Decoder, v
 }
 
 func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
+	// TODO: validate keys order
 	buf := ctx.Buf
 
 	if buf[cursor] != 'd' {
@@ -66,6 +68,8 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 		rv.Set(reflect.MakeMapWithSize(d.mapType, 8))
 	}
 
+	var lastKey []byte
+
 	for {
 		if cursor >= bufSize {
 			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
@@ -76,11 +80,27 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 			return cursor, nil
 		}
 
+		currentKey, _, err := readString(buf, cursor)
+		if err != nil {
+			return 0, err
+		}
+
 		k := reflect.New(d.keyType).Elem()
 		keyCursor, err := d.keyDecoder.Decode(ctx, cursor, depth, k)
 		if err != nil {
 			return 0, err
 		}
+
+		if lastKey != nil {
+			switch bytes.Compare(lastKey, currentKey) {
+			case 0:
+				return cursor, fmt.Errorf("dictionary conrains duplicated keys %s. index %d", currentKey, cursor)
+			case 1:
+				return cursor, fmt.Errorf("dictionary conrains unordered keys %s, %s. index %d", lastKey, currentKey, cursor)
+			}
+		}
+		lastKey = currentKey
+
 		cursor = keyCursor
 
 		v := reflect.New(d.valueType).Elem()
