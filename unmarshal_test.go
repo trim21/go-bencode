@@ -351,7 +351,7 @@ func TestUnmarshal_skip_value(t *testing.T) {
 
 func TestUnmarshal_unmarshaler(t *testing.T) {
 	type Container struct {
-		Value bencode.RawMessage `bencode:"value"`
+		Value bencode.RawBytes `bencode:"value"`
 	}
 
 	var c Container

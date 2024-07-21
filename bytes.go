@@ -4,19 +4,19 @@ import (
 	"errors"
 )
 
-type RawMessage []byte
+type RawBytes []byte
 
-func (b *RawMessage) UnmarshalBencode(bytes []byte) error {
+func (b *RawBytes) UnmarshalBencode(bytes []byte) error {
 	if b == nil {
-		return errors.New("bencode.RawMessage: UnmarshalBencode on nil pointer")
+		return errors.New("bencode.RawBytes: UnmarshalBencode on nil pointer")
 	}
 	*b = append((*b)[0:0], bytes...)
 	return nil
 }
 
-func (b RawMessage) MarshalBencode() ([]byte, error) {
+func (b RawBytes) MarshalBencode() ([]byte, error) {
 	return b, nil
 }
 
-var _ Unmarshaler = (*RawMessage)(nil)
-var _ Marshaler = (*RawMessage)(nil)
+var _ Unmarshaler = (*RawBytes)(nil)
+var _ Marshaler = (*RawBytes)(nil)

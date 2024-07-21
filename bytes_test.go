@@ -10,10 +10,10 @@ import (
 )
 
 func TestMarshalBytes(t *testing.T) {
-	var b = bencode.RawMessage("i1e")
+	var b = bencode.RawBytes("i1e")
 
 	var S = struct {
-		V bencode.RawMessage `bencode:"v"`
+		V bencode.RawBytes `bencode:"v"`
 	}{V: b}
 
 	actual, err := bencode.Marshal(S)
