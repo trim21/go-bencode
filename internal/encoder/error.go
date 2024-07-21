@@ -9,7 +9,7 @@ type UnsupportedTypeError struct {
 }
 
 func (e *UnsupportedTypeError) Error() string {
-	return "php serialize: can't encode type: " + e.Type.String()
+	return "bencode: can't encode type: " + e.Type.String()
 }
 
 type UnsupportedTypeAsMapKeyError struct {
@@ -17,7 +17,7 @@ type UnsupportedTypeAsMapKeyError struct {
 }
 
 func (e *UnsupportedTypeAsMapKeyError) Error() string {
-	return "php serialize: unsupported type as key of map: " + e.Type.String()
+	return "bencode: unsupported type as key of map: " + e.Type.String()
 }
 
 type UnsupportedInterfaceTypeError struct {
@@ -25,5 +25,5 @@ type UnsupportedInterfaceTypeError struct {
 }
 
 func (e *UnsupportedInterfaceTypeError) Error() string {
-	return "php serialize: can't encode type (as part of an interface): " + e.Type.String()
+	return "bencode: can't encode type (as part of an interface): " + e.Type.String()
 }
