@@ -43,16 +43,16 @@ func storeDecoder(rt reflect.Type, dec Decoder, m map[reflect.Type]Decoder) {
 }
 
 func compileHead(rt reflect.Type, structTypeToDecoder map[reflect.Type]Decoder) (Decoder, error) {
-	if reflect.PtrTo(rt).Implements(unmarshalerType) {
-		return newUnmarshalerDecoder(reflect.PtrTo(rt), "", ""), nil
+	if reflect.PointerTo(rt).Implements(unmarshalerType) {
+		return newUnmarshalerDecoder(reflect.PointerTo(rt), "", ""), nil
 	}
 	return compile(rt.Elem(), "", "", structTypeToDecoder)
 }
 
 func compile(rt reflect.Type, structName, fieldName string, structTypeToDecoder map[reflect.Type]Decoder) (Decoder, error) {
 	switch {
-	case reflect.PtrTo(rt).Implements(unmarshalerType):
-		return newUnmarshalerDecoder(reflect.PtrTo(rt), structName, fieldName), nil
+	case reflect.PointerTo(rt).Implements(unmarshalerType):
+		return newUnmarshalerDecoder(reflect.PointerTo(rt), structName, fieldName), nil
 	case rt == bytesType:
 		return newByteSliceDecoder(rt, structName, fieldName), nil
 	case rt.Kind() == reflect.Array && rt.Elem().Kind() == reflect.Uint8:
@@ -72,28 +72,10 @@ func compile(rt reflect.Type, structName, fieldName string, structTypeToDecoder 
 		return compileMap(rt, structName, fieldName, structTypeToDecoder)
 	case reflect.Interface:
 		return compileInterface(rt, structName, fieldName)
-	case reflect.Uintptr:
-		return compileUint(rt, structName, fieldName)
-	case reflect.Int:
-		return compileInt(rt, structName, fieldName)
-	case reflect.Int8:
-		return compileInt8(rt, structName, fieldName)
-	case reflect.Int16:
-		return compileInt16(rt, structName, fieldName)
-	case reflect.Int32:
-		return compileInt32(rt, structName, fieldName)
-	case reflect.Int64:
-		return compileInt64(rt, structName, fieldName)
-	case reflect.Uint:
-		return compileUint(rt, structName, fieldName)
-	case reflect.Uint8:
-		return compileUint8(rt, structName, fieldName)
-	case reflect.Uint16:
-		return compileUint16(rt, structName, fieldName)
-	case reflect.Uint32:
-		return compileUint32(rt, structName, fieldName)
-	case reflect.Uint64:
-		return compileUint64(rt, structName, fieldName)
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+		return newIntDecoder(rt, structName, fieldName), nil
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint:
+		return newUintDecoder(rt, structName, fieldName), nil
 	case reflect.String:
 		return compileString(rt, structName, fieldName)
 	case reflect.Bool:
@@ -105,8 +87,8 @@ func compile(rt reflect.Type, structName, fieldName string, structTypeToDecoder 
 
 func compileMapKey(rt reflect.Type, structName, fieldName string, structTypeToDecoder map[reflect.Type]Decoder) (Decoder, error) {
 	switch {
-	case reflect.PtrTo(rt).Implements(unmarshalerType):
-		return newUnmarshalerDecoder(reflect.PtrTo(rt), structName, fieldName), nil
+	case reflect.PointerTo(rt).Implements(unmarshalerType):
+		return newUnmarshalerDecoder(reflect.PointerTo(rt), structName, fieldName), nil
 	case rt.Kind() == reflect.String:
 		return newStringDecoder(structName, fieldName), nil
 	case rt.Kind() == reflect.Array && rt.Elem().Kind() == reflect.Uint8:
@@ -122,46 +104,6 @@ func compilePtr(rt reflect.Type, structName, fieldName string, structTypeToDecod
 		return nil, err
 	}
 	return newPtrDecoder(dec, rt.Elem(), structName, fieldName)
-}
-
-func compileInt(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newIntDecoder(rt, structName, fieldName), nil
-}
-
-func compileInt8(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newIntDecoder(rt, structName, fieldName), nil
-}
-
-func compileInt16(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newIntDecoder(rt, structName, fieldName), nil
-}
-
-func compileInt32(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newIntDecoder(rt, structName, fieldName), nil
-}
-
-func compileInt64(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newIntDecoder(rt, structName, fieldName), nil
-}
-
-func compileUint(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newUintDecoder(rt, structName, fieldName), nil
-}
-
-func compileUint8(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newUintDecoder(rt, structName, fieldName), nil
-}
-
-func compileUint16(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newUintDecoder(rt, structName, fieldName), nil
-}
-
-func compileUint32(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newUintDecoder(rt, structName, fieldName), nil
-}
-
-func compileUint64(rt reflect.Type, structName, fieldName string) (Decoder, error) {
-	return newUintDecoder(rt, structName, fieldName), nil
 }
 
 func compileString(rt reflect.Type, structName, fieldName string) (Decoder, error) {

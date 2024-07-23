@@ -16,7 +16,7 @@ type ptrDecoder struct {
 func newPtrDecoder(dec Decoder, rt reflect.Type, structName, fieldName string) (Decoder, error) {
 	if rt.Kind() == reflect.Ptr {
 		return nil, &errors.UnsupportedTypeError{
-			Type: reflect.PtrTo(rt),
+			Type: reflect.PointerTo(rt),
 		}
 	}
 	return &ptrDecoder{
