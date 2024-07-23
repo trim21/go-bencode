@@ -321,8 +321,7 @@ func TestUnmarshal_array(t *testing.T) {
 		var c Container
 		raw := `d5:valuel1:01:11:21:3ee`
 		err := bencode.Unmarshal([]byte(raw), &c)
-		require.NoError(t, err)
-		require.Equal(t, [5]string{"0", "1", "2", "3"}, c.Value)
+		require.ErrorContains(t, err, "failed to decode list into GO array, bencode list length")
 	})
 
 	t.Run("string more length", func(t *testing.T) {

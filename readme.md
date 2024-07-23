@@ -31,7 +31,12 @@ See [examples](./example_test.go)
 
 go `any` type will be decoded as `map[string]any`, `[]any`, `int64` or `string`.
 
-String may not be valid utf8 string.
+`[]uint8` and `[...]uint8` will be decoded as bencode string.
+
+Decode Go string may not be valid utf8 string.
+
+GO Array will be decoded as bencode list with size check.
+Only bencode list with same length are valid, otherwise it will return a error.
 
 ## Note
 
