@@ -12,8 +12,11 @@ func compileType(rt reflect.Type) (encoder, error) {
 }
 
 func compile(rt reflect.Type, seen seenMap) (encoder, error) {
-	if rt.Implements(marshalerType) {
+	switch {
+	case rt.Implements(marshalerType):
 		return compileMarshaler(rt)
+	case rt == bytesType:
+		return encodeBytes, nil
 	}
 
 	switch rt.Kind() {
