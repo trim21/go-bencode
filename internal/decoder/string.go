@@ -21,10 +21,8 @@ func (d *stringDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 	if err != nil {
 		return 0, err
 	}
-	if bytes == nil {
-		return c, nil
+	if len(bytes) != 0 {
+		rv.SetString(string(bytes))
 	}
-	cursor = c
-	rv.SetString(string(bytes))
-	return cursor, nil
+	return c, nil
 }

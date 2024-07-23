@@ -2,24 +2,22 @@ package decoder
 
 import (
 	"reflect"
-	"slices"
 
 	"github.com/trim21/go-bencode/internal/errors"
 )
 
 type interfaceDecoder struct {
-	rt               reflect.Type
-	structName       string
-	fieldName        string
-	sliceDecoder     *sliceDecoder
-	mapDecoder       *mapDecoder
-	stringDecoder    *stringDecoder
-	intDecode        *intDecoder
-	mapAnyKeyDecoder *mapKeyDecoder
+	rt            reflect.Type
+	structName    string
+	fieldName     string
+	sliceDecoder  *sliceDecoder
+	mapDecoder    *mapDecoder
+	stringDecoder *stringDecoder
+	intDecode     *intDecoder
 }
 
 func newEmptyInterfaceDecoder(structName, fieldName string) *interfaceDecoder {
-	ifaceDecoder := &interfaceDecoder{
+	ifceDecoder := &interfaceDecoder{
 		rt:            emptyInterfaceType,
 		structName:    structName,
 		fieldName:     fieldName,
@@ -27,43 +25,28 @@ func newEmptyInterfaceDecoder(structName, fieldName string) *interfaceDecoder {
 		stringDecoder: newStringDecoder(structName, fieldName),
 	}
 
-	ifaceDecoder.mapAnyKeyDecoder = newInterfaceMapKeyDecoder(ifaceDecoder.stringDecoder)
-
-	ifaceDecoder.sliceDecoder = newSliceDecoder(
-		ifaceDecoder,
+	ifceDecoder.sliceDecoder = newSliceDecoder(
+		ifceDecoder,
 		emptyInterfaceType,
-		structName, fieldName,
-	)
-
-	ifaceDecoder.mapDecoder = newMapDecoder(
-		interfaceClassMapType,
-		stringType,
-		ifaceDecoder.stringDecoder,
-		interfaceClassMapType.Elem(),
-		ifaceDecoder,
 		structName,
 		fieldName,
 	)
 
-	return ifaceDecoder
+	ifceDecoder.mapDecoder = newMapDecoder(
+		interfaceClassMapType,
+		stringType,
+		ifceDecoder.stringDecoder,
+		emptyInterfaceType,
+		ifceDecoder,
+		structName,
+		fieldName,
+	)
+
+	return ifceDecoder
 }
 
 func newInterfaceDecoder(rt reflect.Type, structName, fieldName string) *interfaceDecoder {
-	emptyIfaceDecoder := newEmptyInterfaceDecoder(structName, fieldName)
-	return &interfaceDecoder{
-		rt:         rt,
-		structName: structName,
-		fieldName:  fieldName,
-		sliceDecoder: newSliceDecoder(
-			emptyIfaceDecoder,
-			emptyInterfaceType,
-			structName, fieldName,
-		),
-		stringDecoder:    newStringDecoder(structName, fieldName),
-		intDecode:        emptyIfaceDecoder.intDecode,
-		mapDecoder:       emptyIfaceDecoder.mapDecoder,
-		mapAnyKeyDecoder: emptyIfaceDecoder.mapAnyKeyDecoder,
-	}
+	return newEmptyInterfaceDecoder(structName, fieldName)
 }
 
 var (
@@ -98,29 +81,6 @@ func (d *interfaceDecoder) errUnmarshalType(rt reflect.Type, offset int) *errors
 
 func (d *interfaceDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	buf := ctx.Buf
-	if rv.NumMethod() > 0 && rv.CanInterface() {
-		if u, ok := rv.Interface().(Unmarshaler); ok {
-			return decodeUnmarshaler(buf, cursor, depth, u)
-		}
-		return 0, d.errUnmarshalType(rv.Type(), cursor)
-	}
-
-	if rv.Type().NumMethod() == 0 {
-		// concrete type is empty interface
-		return d.decodeEmptyInterface(ctx, cursor, depth, rv)
-	}
-	if rv.Type().Kind() == reflect.Ptr && rv.Type().Elem() == d.rt || rv.Type().Kind() != reflect.Ptr {
-		return d.decodeEmptyInterface(ctx, cursor, depth, rv)
-	}
-	decoder, err := CompileToGetDecoder(rv.Type())
-	if err != nil {
-		return 0, err
-	}
-	return decoder.Decode(ctx, cursor, depth, rv)
-}
-
-func (d *interfaceDecoder) decodeEmptyInterface(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
-	buf := ctx.Buf
 	if cursor >= len(buf) {
 		return 0, errors.ErrSyntax("input too short when decoding any", cursor)
 	}
@@ -149,7 +109,7 @@ func (d *interfaceDecoder) decodeEmptyInterface(ctx *Context, cursor int, depth 
 		if err != nil {
 			return 0, err
 		}
-		rv.Set(reflect.ValueOf(slices.Clone(b)))
+		rv.Set(reflect.ValueOf(string(b)))
 		return end, nil
 	case 'i':
 		var v int64
@@ -186,8 +146,4 @@ func (d *mapKeyDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 	default:
 		return 0, errors.ErrExpected("array key", cursor)
 	}
-}
-
-func newInterfaceMapKeyDecoder(stringDecoder *stringDecoder) *mapKeyDecoder {
-	return &mapKeyDecoder{strDecoder: stringDecoder}
 }

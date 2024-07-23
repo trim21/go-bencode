@@ -45,7 +45,6 @@ func newMapDecoder(mapType reflect.Type, keyType reflect.Type, keyDec Decoder, v
 }
 
 func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
-	// TODO: validate keys order
 	buf := ctx.Buf
 
 	bufSize := len(buf)

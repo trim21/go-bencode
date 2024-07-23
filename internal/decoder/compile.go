@@ -133,5 +133,9 @@ func compileArray(rt reflect.Type, structName, fieldName string, structTypeToDec
 }
 
 func compileInterface(rt reflect.Type, structName, fieldName string) (Decoder, error) {
+	if rt.NumMethod() != 0 {
+		return nil, fmt.Errorf("bencode: can only decode to empty interface, %s is not supported", rt.String())
+	}
+
 	return newInterfaceDecoder(rt, structName, fieldName), nil
 }
