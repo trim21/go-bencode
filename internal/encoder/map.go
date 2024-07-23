@@ -48,6 +48,7 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 		keys := rv.MapKeys()
 		slices.SortFunc(keys, keyCompare)
 
+		var err error
 		for _, key := range keys {
 			b, err = keyEncoder(ctx, b, key)
 			if err != nil {
