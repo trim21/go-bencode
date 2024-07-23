@@ -15,8 +15,6 @@ Or you can wrap these types and implement `bencode.Marshaler` or `bencode.Unmars
 
 ## Supported and tested go version
 
-- 1.20
-- 1.21
 - 1.22
 
 ## Install
