@@ -5,8 +5,9 @@
 
 Decoding and encoding bencode.
 
-Support All go type including `map`, `slice`, `struct`, `array`, and simple type like `int`, `uint`
-...etc.
+Support All go type including `map`/`slice`/`struct`/`array`, and simple type like `bool`/`int`/`uint`/`string`/....
+
+`float32` and `float64` are not supported, bencode doesn't have this type.
 
 Encoding and decoding some type from standard library like `time.Time`, `net.IP` are not supported.
 If you have any thought about how to support these types, please create an issue.
