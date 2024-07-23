@@ -2,6 +2,7 @@ package decoder
 
 import (
 	"reflect"
+	"slices"
 
 	"github.com/trim21/go-bencode/internal/errors"
 )
@@ -148,7 +149,7 @@ func (d *interfaceDecoder) decodeEmptyInterface(ctx *Context, cursor int, depth 
 		if err != nil {
 			return 0, err
 		}
-		rv.Set(reflect.ValueOf(string(b)))
+		rv.Set(reflect.ValueOf(slices.Clone(b)))
 		return end, nil
 	case 'i':
 		var v int64

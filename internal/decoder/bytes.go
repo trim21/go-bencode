@@ -3,6 +3,7 @@ package decoder
 import (
 	"fmt"
 	"reflect"
+	"slices"
 )
 
 var (
@@ -29,7 +30,7 @@ func (d *bytesSliceDecoder) Decode(ctx *Context, cursor int, depth int64, rv ref
 		return 0, err
 	}
 
-	rv.SetBytes(bytes)
+	rv.SetBytes(slices.Clone(bytes))
 	return c, nil
 }
 

@@ -36,9 +36,9 @@ so encoder could know if it's a empty value and skip fields.
 
 ### Unmarshal
 
-go `any` type will be decoded as `map[string]any`, `[]any`, `int64` or `string`.
+go `any` type will be decoded as `map[string]any`, `[]any`, `int64` or `[]byte`.
 
-`[]uint8` and `[...]uint8` will be decoded as bencode string.
+`[]uint8`(`[]byte`) and `[...]uint8`(`[...]byte`) will be decoded as bencode string.
 
 Decode Go string may not be valid utf8 string.
 
