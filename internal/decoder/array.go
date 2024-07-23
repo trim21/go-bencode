@@ -44,10 +44,8 @@ func (d *arrayDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 	}
 
 	if buf[cursor] != 'l' {
-		return 0, errors.ErrTypeError(d.aType.String(), string(buf[cursor]))
+		return 0, errors.ErrTypeMismatch(d.aType.String(), string(buf[cursor]))
 	}
-
-	rv.SetZero()
 
 	cursor++
 
@@ -59,6 +57,9 @@ func (d *arrayDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 		}
 
 		if buf[cursor] == 'e' {
+			if index != d.alen-1 {
+				return 0, fmt.Errorf("bencode: failed to decode list into array, list length %d. array length %d", index+1, d.alen)
+			}
 			return cursor + 1, nil
 		}
 

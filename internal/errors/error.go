@@ -66,7 +66,7 @@ func (e *UnsupportedValueError) Error() string {
 	return fmt.Sprintf("bencode: unsupported value: %s", e.Str)
 }
 
-func ErrTypeError(expected string, actually string) error {
+func ErrTypeMismatch(expected string, actually string) error {
 	return fmt.Errorf("expecteing %s, got %s instead", expected, actually)
 }
 

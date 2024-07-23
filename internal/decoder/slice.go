@@ -34,13 +34,12 @@ func (d *sliceDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
 	}
 
-	if buf[cursor] != 'l' {
-		return 0, errors.ErrTypeError(d.sType.String(), string(buf[cursor]))
+	bufSize := len(buf)
+	if cursor >= bufSize {
+		return 0, errors.DataTooShort(cursor, "list")
 	}
 
 	cursor++
-
-	bufSize := len(buf)
 
 	sCap := 8
 	index := 0

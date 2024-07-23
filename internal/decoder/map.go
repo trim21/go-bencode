@@ -48,8 +48,13 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 	// TODO: validate keys order
 	buf := ctx.Buf
 
+	bufSize := len(buf)
+	if cursor >= bufSize {
+		return 0, errors.DataTooShort(cursor, "list")
+	}
+
 	if buf[cursor] != 'd' {
-		return 0, errors.ErrTypeError("dictionary", string(buf[cursor]))
+		return 0, errors.ErrTypeMismatch("dictionary", string(buf[cursor]))
 	}
 
 	cursor++
@@ -59,7 +64,6 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
 	}
 
-	bufSize := len(buf)
 	if bufSize < 2 {
 		return 0, errors.ErrExpected("buffer overflow when decoding dictionary", cursor)
 	}
