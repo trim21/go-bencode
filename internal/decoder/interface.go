@@ -66,10 +66,10 @@ func newInterfaceDecoder(rt reflect.Type, structName, fieldName string) *interfa
 }
 
 var (
-	stringType            = reflect.TypeOf((*string)(nil)).Elem()
-	emptyInterfaceType    = reflect.TypeOf((*any)(nil)).Elem()
-	interfaceClassMapType = reflect.TypeOf((*map[string]any)(nil)).Elem()
-	interfaceIntType      = reflect.TypeOf((*int64)(nil)).Elem()
+	stringType            = reflect.TypeFor[string]()
+	emptyInterfaceType    = reflect.TypeFor[any]()
+	interfaceClassMapType = reflect.TypeFor[map[string]any]()
+	interfaceIntType      = reflect.TypeFor[int64]()
 )
 
 func decodeUnmarshaler(buf []byte, cursor int, depth int64, unmarshaler Unmarshaler) (int, error) {

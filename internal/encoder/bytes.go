@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-var bytesType = reflect.TypeOf([]byte{})
+var bytesType = reflect.TypeFor[[]byte]()
 
 func encodeBytes(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	b = strconv.AppendInt(b, int64(rv.Len()), 10)

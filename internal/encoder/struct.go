@@ -169,7 +169,7 @@ type IsZeroValue interface {
 	IsZeroBencodeValue() bool
 }
 
-var isZeroValueType = reflect.TypeOf((*IsZeroValue)(nil)).Elem()
+var isZeroValueType = reflect.TypeFor[IsZeroValue]()
 
 func compileIsZero(rt reflect.Type) func(rv reflect.Value) bool {
 	if rt.Implements(isZeroValueType) {

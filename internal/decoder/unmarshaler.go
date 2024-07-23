@@ -11,7 +11,7 @@ type Unmarshaler interface {
 }
 
 var (
-	unmarshalerType = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
+	unmarshalerType = reflect.TypeFor[Unmarshaler]()
 )
 
 type unmarshalerDecoder struct {

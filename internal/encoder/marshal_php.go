@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-var marshalerType = reflect.TypeOf((*Marshaler)(nil)).Elem()
+var marshalerType = reflect.TypeFor[Marshaler]()
 
 type Marshaler interface {
 	MarshalBencode() ([]byte, error)

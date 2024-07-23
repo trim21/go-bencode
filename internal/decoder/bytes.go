@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	bytesType = reflect.TypeOf([]byte{})
+	bytesType = reflect.TypeFor[[]byte]()
 )
 
 type bytesSliceDecoder struct {
