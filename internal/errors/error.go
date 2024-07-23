@@ -141,3 +141,7 @@ type overflowError struct {
 func (o overflowError) Error() string {
 	return fmt.Sprintf("bencode: %v overflow type %s", o.v, o.t)
 }
+
+func DataTooShort(cursor int, t string) error {
+	return fmt.Errorf("bencode: buffer too short when decoding %s", t)
+}

@@ -32,9 +32,15 @@ func newArrayDecoder(dec Decoder, elemType reflect.Type, alen int, structName, f
 
 func (d *arrayDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	buf := ctx.Buf
+	bufSize := len(buf)
+
 	depth++
 	if depth > maxDecodeNestingDepth {
 		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
+	}
+
+	if cursor >= bufSize {
+		return 0, errors.DataTooShort(cursor, "list")
 	}
 
 	if buf[cursor] != 'l' {
@@ -44,8 +50,6 @@ func (d *arrayDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 	rv.SetZero()
 
 	cursor++
-
-	bufSize := len(buf)
 
 	index := 0
 
