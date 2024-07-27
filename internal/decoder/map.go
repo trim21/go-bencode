@@ -64,7 +64,7 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 	}
 
 	if bufSize < 2 {
-		return 0, errors.ErrExpected("buffer overflow when decoding dictionary", cursor)
+		return 0, errors.ErrExpecting("buffer overflow when decoding dictionary", buf, cursor)
 	}
 
 	if rv.IsNil() {

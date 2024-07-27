@@ -144,6 +144,6 @@ func (d *mapKeyDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 		return cursor, nil
 	// string key
 	default:
-		return 0, errors.ErrExpected("array key", cursor)
+		return 0, errors.ErrExpecting("array key", buf, cursor)
 	}
 }

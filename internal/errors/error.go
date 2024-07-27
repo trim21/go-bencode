@@ -102,8 +102,8 @@ func ErrUnexpectedLength(buf []byte, cursor int) *SyntaxError {
 	}
 }
 
-func ErrExpected(msg string, cursor int) *SyntaxError {
-	return &SyntaxError{msg: fmt.Sprintf("expected %s", msg), Offset: cursor}
+func ErrExpecting(msg string, buf []byte, cursor int) error {
+	return fmt.Errorf("expecting start of %s, found '%c' instead. index %d", msg, buf[cursor], cursor)
 }
 
 func ErrInvalidCharacter(c byte, context string, cursor int) *SyntaxError {

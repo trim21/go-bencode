@@ -46,7 +46,6 @@ func skipList(buf []byte, cursor int, depth int64) (int, error) {
 	}
 }
 
-// TODO: validate keys order
 func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 	depth++
 	if depth > maxDecodeNestingDepth {
@@ -95,7 +94,7 @@ func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 		cursor = c
 
 		if cursor >= bufSize {
-			return 0, errors.ErrExpected("object value after colon", cursor)
+			return 0, errors.ErrExpecting("object value after colon", buf, cursor)
 		}
 
 		c, err = skipValue(buf, cursor, depth)

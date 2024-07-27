@@ -37,17 +37,17 @@ func (d *intDecoder) typeError(buf []byte, offset int) *errors.UnmarshalTypeErro
 
 func decodeIntegerBytes(buf []byte, cursor int) ([]byte, int, error) {
 	if buf[cursor] != 'i' {
-		return nil, cursor, errors.ErrExpected("int", cursor)
+		return nil, cursor, errors.ErrExpecting("integer", buf, cursor)
 	}
 	cursor++
 
 	e := bytes.IndexByte(buf[cursor:], 'e')
 	if e == -1 {
-		return nil, cursor, errors.ErrExpected("int ending 'e'", cursor)
+		return nil, cursor, errors.ErrSyntax("invalid integer, missing ending char 'e'", cursor)
 	}
 
 	if e == 0 {
-		return nil, cursor, errors.ErrExpected("invalid int", cursor)
+		return nil, cursor, errors.ErrSyntax("invalid integer", cursor)
 	}
 
 	// i ... e
@@ -101,7 +101,7 @@ func (d *intDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 func (d *intDecoder) processBytes(bytes []byte, cursor int, rv reflect.Value) (int, error) {
 	i64, err := strconv.ParseInt(string(bytes), 10, 64)
 	if err != nil {
-		return 0, d.typeError(bytes, cursor)
+		return 0, fmt.Errorf("failed to decode int from bencode: %w", err)
 	}
 
 	if rv.OverflowInt(i64) {

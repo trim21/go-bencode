@@ -21,7 +21,7 @@ func CompileToGetDecoder(rt reflect.Type) (Decoder, error) {
 		return dec, nil
 	}
 
-	dec, err := compileHead(rt, map[reflect.Type]Decoder{})
+	dec, err := compile(rt.Elem(), "", "", map[reflect.Type]Decoder{})
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +40,6 @@ func storeDecoder(rt reflect.Type, dec Decoder, m map[reflect.Type]Decoder) {
 	newDecoderMap[rt] = dec
 
 	cachedDecoderMap.Store(&newDecoderMap)
-}
-
-func compileHead(rt reflect.Type, structTypeToDecoder map[reflect.Type]Decoder) (Decoder, error) {
-	if reflect.PointerTo(rt).Implements(unmarshalerType) {
-		return newUnmarshalerDecoder(reflect.PointerTo(rt), "", ""), nil
-	}
-	return compile(rt.Elem(), "", "", structTypeToDecoder)
 }
 
 func compile(rt reflect.Type, structName, fieldName string, structTypeToDecoder map[reflect.Type]Decoder) (Decoder, error) {

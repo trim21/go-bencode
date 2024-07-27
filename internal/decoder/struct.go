@@ -103,24 +103,22 @@ func decodeKey(d *structDecoder, buf []byte, cursor int) ([]byte, int, *structFi
 }
 
 func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
+	buf := ctx.Buf
+	bufSize := len(buf)
+	if cursor+2 > bufSize {
+		return 0, errors.ErrSyntax("buffer overflow when parsing directory", cursor)
+	}
+
 	depth++
 	if depth > maxDecodeNestingDepth {
 		return 0, errors.ErrExceededMaxDepth(ctx.Buf[cursor], cursor)
 	}
 
-	buf := ctx.Buf
-
-	bufSize := len(buf)
-
-	if cursor+2 > bufSize {
-		return 0, errors.ErrSyntax("buffer overflow when parsing directory", cursor)
-	}
-
-	if buf[cursor] == 'd' {
-		cursor++
-	} else {
+	if buf[cursor] != 'd' {
 		return 0, errors.ErrInvalidBeginningOfValue(buf[cursor], cursor)
 	}
+
+	cursor++
 
 	var lastKey []byte
 
@@ -152,7 +150,7 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 		cursor = c
 
 		if cursor >= bufSize {
-			return 0, errors.ErrExpected("object value after colon", cursor)
+			return 0, errors.ErrExpecting("object value after colon", buf, cursor)
 		}
 
 		if field == nil {
