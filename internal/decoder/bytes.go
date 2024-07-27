@@ -57,7 +57,7 @@ func (a *bytesArrayDecoder) Decode(ctx *Context, cursor int, depth int64, rv ref
 	}
 
 	if len(bytes) != a.size {
-		return 0, fmt.Errorf("string length mismatch expected size: expecting %d, actuall %d. index %d", a.size, len(bytes), cursor)
+		return 0, fmt.Errorf("bencode: string length mismatch expected size: expecting %d, actuall %d. index %d", a.size, len(bytes), cursor)
 	}
 
 	// SetBytes doesn't work with array bytes

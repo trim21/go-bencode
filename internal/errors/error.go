@@ -26,7 +26,13 @@ type SyntaxError struct {
 	Offset int    // error occurred after reading Offset bytes
 }
 
-func (e *SyntaxError) Error() string { return fmt.Sprintf("%s: index %d", e.msg, e.Offset) }
+func (e *SyntaxError) Error() string {
+	if e.Offset != 0 {
+		return fmt.Sprintf("%s: index %d", e.msg, e.Offset)
+	}
+
+	return e.msg
+}
 
 // An UnmarshalTypeError describes a JSON value that was
 // not appropriate for a value of a specific Go type.
@@ -66,10 +72,6 @@ func (e *UnsupportedValueError) Error() string {
 	return fmt.Sprintf("bencode: unsupported value: %s", e.Str)
 }
 
-func ErrTypeMismatch(expected string, actually string) error {
-	return fmt.Errorf("expecteing %s, got %s instead", expected, actually)
-}
-
 func ErrSyntax(msg string, offset int) *SyntaxError {
 	return &SyntaxError{msg: msg, Offset: offset}
 }
@@ -81,13 +83,6 @@ func ErrExceededMaxDepth(c byte, cursor int) *SyntaxError {
 	}
 }
 
-func ErrUnexpectedStart(rt string, buf []byte, cursor int) *SyntaxError {
-	return &SyntaxError{
-		msg:    fmt.Sprintf("bencode: unexpected %c at beginneng of %s", buf[cursor], rt),
-		Offset: cursor,
-	}
-}
-
 func ErrUnexpectedEnd(msg string, cursor int) *SyntaxError {
 	return &SyntaxError{
 		msg:    fmt.Sprintf("bencode: %s unexpected end of input", msg),
@@ -95,15 +90,8 @@ func ErrUnexpectedEnd(msg string, cursor int) *SyntaxError {
 	}
 }
 
-func ErrUnexpectedLength(buf []byte, cursor int) *SyntaxError {
-	return &SyntaxError{
-		msg:    fmt.Sprintf("bencode: unexpected char %c in length", buf[cursor]),
-		Offset: cursor,
-	}
-}
-
 func ErrExpecting(msg string, buf []byte, cursor int) error {
-	return fmt.Errorf("expecting start of %s, found '%c' instead. index %d", msg, buf[cursor], cursor)
+	return fmt.Errorf("bencode: expecting start of %s, found '%c' instead. index %d", msg, buf[cursor], cursor)
 }
 
 func ErrInvalidCharacter(c byte, context string, cursor int) *SyntaxError {
@@ -121,7 +109,7 @@ func ErrInvalidCharacter(c byte, context string, cursor int) *SyntaxError {
 
 func ErrInvalidBeginningOfValue(c byte, cursor int) *SyntaxError {
 	return &SyntaxError{
-		msg:    fmt.Sprintf("invalid character '%c' looking for beginning of value", c),
+		msg:    fmt.Sprintf("bencode: invalid character '%c' looking for beginning of value", c),
 		Offset: cursor,
 	}
 }
@@ -142,6 +130,8 @@ func (o overflowError) Error() string {
 	return fmt.Sprintf("bencode: %v overflow type %s", o.v, o.t)
 }
 
-func DataTooShort(cursor int, t string) error {
-	return fmt.Errorf("bencode: buffer too short when decoding %s", t)
+func DataTooShort() error {
+	return &SyntaxError{
+		msg: "bencode: unexpected end of bencode input",
+	}
 }

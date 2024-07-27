@@ -49,11 +49,11 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 
 	bufSize := len(buf)
 	if cursor >= bufSize {
-		return 0, errors.DataTooShort(cursor, "list")
+		return 0, errors.DataTooShort()
 	}
 
 	if buf[cursor] != 'd' {
-		return 0, errors.ErrTypeMismatch("dictionary", string(buf[cursor]))
+		return 0, errors.ErrExpecting("dictionary", buf, cursor)
 	}
 
 	cursor++
@@ -64,7 +64,7 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 	}
 
 	if bufSize < 2 {
-		return 0, errors.ErrExpecting("buffer overflow when decoding dictionary", buf, cursor)
+		return 0, errors.DataTooShort()
 	}
 
 	if rv.IsNil() {
@@ -75,7 +75,7 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 
 	for {
 		if cursor >= bufSize {
-			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
+			return 0, errors.DataTooShort()
 		}
 
 		if buf[cursor] == 'e' {

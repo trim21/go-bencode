@@ -36,7 +36,7 @@ func (d *sliceDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 
 	bufSize := len(buf)
 	if cursor >= bufSize {
-		return 0, errors.DataTooShort(cursor, "list")
+		return 0, errors.DataTooShort()
 	}
 
 	cursor++

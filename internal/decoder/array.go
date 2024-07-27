@@ -40,11 +40,11 @@ func (d *arrayDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 	}
 
 	if cursor >= bufSize {
-		return 0, errors.DataTooShort(cursor, "list")
+		return 0, errors.DataTooShort()
 	}
 
 	if buf[cursor] != 'l' {
-		return 0, errors.ErrTypeMismatch(d.aType.String(), string(buf[cursor]))
+		return 0, errors.ErrExpecting("list", buf, cursor)
 	}
 
 	cursor++
@@ -53,7 +53,7 @@ func (d *arrayDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 
 	for {
 		if cursor >= bufSize {
-			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
+			return 0, errors.DataTooShort()
 		}
 
 		if buf[cursor] == 'e' {

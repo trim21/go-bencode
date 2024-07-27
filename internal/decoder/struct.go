@@ -14,6 +14,7 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 		return dec, nil
 	}
 	structDec := newStructDecoder(structName, fieldName, map[string]*structFieldSet{})
+	structDec.structName = rt.Name()
 	structTypeToDecoder[rt] = structDec
 	structName = rt.Name()
 
@@ -33,16 +34,16 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 		}
 
 		tag := runtime.StructTagFromField(field)
-		dec, err := compile(field.Type, structName, field.Name, structTypeToDecoder)
-		if err != nil {
-			return nil, err
-		}
-
 		var key string
 		if tag.Key != "" {
 			key = tag.Key
 		} else {
 			key = field.Name
+		}
+
+		dec, err := compile(field.Type, structName, key, structTypeToDecoder)
+		if err != nil {
+			return nil, err
 		}
 
 		fieldSet := &structFieldSet{
@@ -73,7 +74,6 @@ type structFieldSet struct {
 	dec      Decoder
 	fieldIdx int
 	key      string
-	err      error
 }
 
 type structDecoder struct {
@@ -124,7 +124,7 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 
 	for {
 		if cursor >= bufSize {
-			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
+			return 0, errors.DataTooShort()
 		}
 
 		if buf[cursor] == 'e' {
@@ -161,13 +161,9 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 			continue
 		}
 
-		if field.err != nil {
-			return 0, field.err
-		}
-
 		cursor, err = field.dec.Decode(ctx, cursor, depth, rv.Field(field.fieldIdx))
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("bencode: failed to decode Go struct field %s.%s: %w", d.structName, field.key, err)
 		}
 	}
 }

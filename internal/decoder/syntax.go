@@ -30,7 +30,7 @@ func skipList(buf []byte, cursor int, depth int64) (int, error) {
 
 	for {
 		if cursor >= bufSize {
-			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
+			return 0, errors.DataTooShort()
 		}
 
 		if buf[cursor] == 'e' {
@@ -55,20 +55,19 @@ func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 	bufSize := len(buf)
 
 	if cursor+2 > bufSize {
-		return 0, errors.ErrSyntax("buffer overflow when parsing directory", cursor)
+		return 0, errors.DataTooShort()
 	}
 
-	if buf[cursor] == 'd' {
-		cursor++
-	} else {
+	if buf[cursor] != 'd' {
 		return 0, errors.ErrInvalidBeginningOfValue(buf[cursor], cursor)
 	}
+	cursor++
 
 	var lastKey []byte
 
 	for {
 		if cursor >= bufSize {
-			return 0, fmt.Errorf("buffer overflow when decoding dictionary: %d", cursor)
+			return 0, errors.DataTooShort()
 		}
 
 		if buf[cursor] == 'e' {

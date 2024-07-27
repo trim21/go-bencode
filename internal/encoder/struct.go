@@ -71,7 +71,7 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 
 	for _, field := range fields {
 		if fieldNames[field.fieldName] {
-			return nil, fmt.Errorf("duplicate field name %s", field.fieldName)
+			return nil, fmt.Errorf("bencode: duplicate field name %s", field.fieldName)
 		}
 		fieldNames[field.fieldName] = true
 	}

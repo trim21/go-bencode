@@ -9,7 +9,7 @@ import (
 func compilePtr(rt reflect.Type, seen seenMap) (encoder, error) {
 	switch rt.Elem().Kind() {
 	case reflect.Ptr:
-		return nil, fmt.Errorf("encoding nested ptr is not supported *%s", rt.Elem().String())
+		return nil, fmt.Errorf("bencode: encoding nested ptr is not supported *%s", rt.Elem().String())
 	case reflect.Bool:
 		return deRefNilEncoder(encodeBool), nil
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint:
