@@ -7,25 +7,24 @@ import (
 var ctxPool = sync.Pool{
 	New: func() any {
 		return &Context{
-			Buf:         make([]byte, 0, 1024),
-			smallBuffer: make([]byte, 0, 20),
+			Buf: make([]byte, 0, 8*1024),
 		}
 	},
 }
 
 type Context struct {
-	smallBuffer []byte // a small buffer to encode float and time.Time as string
-	Buf         []byte
+	Buf []byte
 }
 
 func newCtx() *Context {
-	ctx := ctxPool.Get().(*Context)
-
-	return ctx
+	return ctxPool.Get().(*Context)
 }
 
 func freeCtx(ctx *Context) {
-	ctx.smallBuffer = ctx.smallBuffer[:0]
+	if cap(ctx.Buf) >= 100*1024*1024 { // drop buffer that are too long
+		return
+	}
+
 	ctx.Buf = ctx.Buf[:0]
 	ctxPool.Put(ctx)
 }

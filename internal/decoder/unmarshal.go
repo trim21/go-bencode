@@ -20,14 +20,14 @@ func Unmarshal(data []byte, v any) error {
 	if err != nil {
 		return err
 	}
-	ctx := TakeRuntimeContext()
+	ctx := newCtx()
 	ctx.Buf = data
 	cursor, err := dec.Decode(ctx, 0, 0, rv.Elem())
 	if err != nil {
-		ReleaseRuntimeContext(ctx)
+		freeCtx(ctx)
 		return err
 	}
-	ReleaseRuntimeContext(ctx)
+	freeCtx(ctx)
 	return validateEndBuf(data, cursor)
 }
 
