@@ -1,6 +1,8 @@
 package bencode
 
 import (
+	"io"
+
 	"github.com/trim21/go-bencode/internal/encoder"
 )
 
@@ -24,4 +26,21 @@ type IsZeroValue interface {
 
 func Marshal(v any) ([]byte, error) {
 	return encoder.Marshal(v)
+}
+
+type Encoder struct {
+	w io.Writer
+}
+
+func (e *Encoder) Encode(v any) error {
+	ctx := encoder.NewCtx()
+	defer encoder.FreeCtx(ctx)
+
+	err := encoder.MarshalCtx(ctx, v)
+	if err != nil {
+		return err
+	}
+
+	_, err = e.w.Write(ctx.Buf)
+	return err
 }

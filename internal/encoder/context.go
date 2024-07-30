@@ -16,11 +16,11 @@ type Context struct {
 	Buf []byte
 }
 
-func newCtx() *Context {
+func NewCtx() *Context {
 	return ctxPool.Get().(*Context)
 }
 
-func freeCtx(ctx *Context) {
+func FreeCtx(ctx *Context) {
 	if cap(ctx.Buf) >= 100*1024*1024 { // drop buffer that are too long
 		return
 	}

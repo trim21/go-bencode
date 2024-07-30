@@ -2,24 +2,30 @@ package encoder
 
 import (
 	"reflect"
+	"slices"
 )
 
 func Marshal(v any) ([]byte, error) {
-	ctx := newCtx()
+	ctx := NewCtx()
+	defer FreeCtx(ctx)
 
-	b, err := encode(ctx, ctx.Buf[:0], v)
+	err := MarshalCtx(ctx, v)
 	if err != nil {
-		freeCtx(ctx)
 		return nil, err
 	}
 
-	dst := make([]byte, len(b))
-	copy(dst, b)
+	return slices.Clone(ctx.Buf), nil
+}
+
+func MarshalCtx(ctx *Context, v any) error {
+	b, err := encode(ctx, ctx.Buf[:0], v)
+	if err != nil {
+		return err
+	}
 
 	ctx.Buf = b
-	freeCtx(ctx)
 
-	return dst, nil
+	return nil
 }
 
 func encode(ctx *Context, b []byte, v any) ([]byte, error) {
