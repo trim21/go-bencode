@@ -54,7 +54,9 @@ func compile(rt reflect.Type, seen seenMap) (encoder, error) {
 	case rt.Implements(marshalerType):
 		return compileMarshaler(rt)
 	case rt == bytesType:
-		return encodeBytes, nil
+		return encodeBytesSlice, nil
+	case rt.Kind() == reflect.Array && rt.Elem().Kind() == reflect.Uint8:
+		return compileBytesArray(rt)
 	}
 
 	switch rt.Kind() {

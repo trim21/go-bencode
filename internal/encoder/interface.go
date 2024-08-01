@@ -7,9 +7,7 @@ import (
 // will need to get type message at marshal time, slow path.
 // should avoid interface for performance thinking.
 func compileInterface(rt reflect.Type) (encoder, error) {
-	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
-		return reflectInterfaceValue(ctx, b, rv)
-	}, nil
+	return reflectInterfaceValue, nil
 }
 
 func reflectInterfaceValue(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
@@ -36,13 +34,11 @@ LOOP:
 		return encodeInt(ctx, b, rv)
 	case reflect.String:
 		return encodeString(ctx, b, rv)
-	case reflect.Slice:
-		return reflectSlice(ctx, b, rv)
-	case reflect.Map:
-		return reflectMap(ctx, b, rv)
-	case reflect.Struct:
-		return reflectStruct(ctx, b, rv)
 	}
 
-	return b, &UnsupportedInterfaceTypeError{rv.Type()}
+	enc, err := compileWithCache(rv.Type())
+	if err != nil {
+		return nil, err
+	}
+	return enc(ctx, b, rv)
 }

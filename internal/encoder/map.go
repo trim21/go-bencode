@@ -14,6 +14,7 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 	valueType := rt.Elem()
 
 	var keyEncoder encoder
+	var err error
 
 	var keyCompare func(reflect.Value, reflect.Value) int
 
@@ -22,10 +23,14 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 		keyEncoder = encodeString
 		keyCompare = stringKeyCompare
 	case keyType.Kind() == reflect.Array && keyType.Elem().Kind() == reflect.Uint8:
-		keyEncoder = encodeBytes
+		keyEncoder, err = compileBytesArray(keyType)
 		keyCompare = arrayByteKeyCompare
 	default:
 		return nil, &UnsupportedTypeAsMapKeyError{Type: keyType}
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	valueEncoder, err := compile(valueType, seen)

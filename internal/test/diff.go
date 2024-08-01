@@ -2,6 +2,7 @@ package test
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
 
 	"github.com/fatih/color"
@@ -14,7 +15,7 @@ func init() {
 
 func diff(a, b string) []diffmatchpatch.Diff {
 	dmp := diffmatchpatch.New()
-	diffs := dmp.DiffMain(a, b, true)
+	diffs := dmp.DiffMain(strconv.Quote(a), strconv.Quote(b), true)
 	if len(diffs) > 2 {
 		diffs = dmp.DiffCleanupSemantic(diffs)
 		diffs = dmp.DiffCleanupEfficiency(diffs)

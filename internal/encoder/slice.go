@@ -9,7 +9,7 @@ func compileSlice(rt reflect.Type, seen seenMap) (encoder, error) {
 	var err error
 
 	if rt == bytesType {
-		return encodeBytes, nil
+		return encodeBytesSlice, nil
 	}
 
 	enc, err = compile(rt.Elem(), seen)

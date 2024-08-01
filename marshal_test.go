@@ -973,3 +973,51 @@ func TestMarshal_marshaler_zero(t *testing.T) {
 	require.NoError(t, err)
 	test.StringEqual(t, `de`, string(actual))
 }
+
+func TestMarshal_byteArray(t *testing.T) {
+	{
+		var s = Generic[[20]byte]{
+			Value: [20]byte{0, 1, 2, 3},
+		}
+
+		actual, err := bencode.Marshal(s)
+		require.NoError(t, err)
+		test.StringEqual(t, "d5:Value20:\x00\x01\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00e", string(actual))
+	}
+
+	{
+		var v [20]byte
+
+		actual, err := bencode.Marshal(v)
+		require.NoError(t, err)
+		test.StringEqual(t, "20:\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", string(actual))
+	}
+}
+
+func TestMarshal_marshaler_byteArray_map(t *testing.T) {
+	var s = map[[20]byte]int{
+		[20]byte{0, 1, 2, 3}: 1,
+	}
+
+	actual, err := bencode.Marshal(s)
+	require.NoError(t, err)
+	test.StringEqual(t, "d20:\x00\x01\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00i1ee", string(actual))
+}
+
+func BenchmarkMarshal_byteArray(b *testing.B) {
+	var buf [20]byte
+
+	b.Run("value", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_, _ = bencode.Marshal(buf)
+		}
+	})
+
+	b.Run("ptr", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_, _ = bencode.Marshal(&buf)
+		}
+	})
+}
