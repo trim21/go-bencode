@@ -13,27 +13,22 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 	if dec, exists := structTypeToDecoder[rt]; exists {
 		return dec, nil
 	}
-	structDec := newStructDecoder(structName, fieldName, map[string]*structFieldSet{})
+	structDec := newStructDecoder(structName, fieldName, map[string]*structFieldDecoder{})
 	structDec.structName = rt.Name()
 	structTypeToDecoder[rt] = structDec
 	structName = rt.Name()
 
-	var allFields []*structFieldSet
-
 	fieldNum := rt.NumField()
+
+	var allFields = make([]*structFieldDecoder, 0, fieldNum)
+
 	for i := 0; i < fieldNum; i++ {
 		field := rt.Field(i)
-		if runtime.IsIgnoredStructField(field) {
+		tag := runtime.StructTagFromField(field)
+		if tag.Key == "-" || runtime.IsIgnoredStructField(field) {
 			continue
 		}
 
-		if field.Anonymous {
-			if (field.Type.Kind() == reflect.Struct) || (field.Type.Kind() == reflect.Ptr && (field.Type.Elem().Kind() == reflect.Struct)) {
-				return nil, fmt.Errorf("anonymous struct field is not supported: %s", rt.String())
-			}
-		}
-
-		tag := runtime.StructTagFromField(field)
 		var key string
 		if tag.Key != "" {
 			key = tag.Key
@@ -41,28 +36,69 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 			key = field.Name
 		}
 
+		if field.Anonymous {
+			if rt.Kind() != reflect.Struct {
+				return nil, fmt.Errorf("bencode: only support struct as Anonymous field, found: %s", rt.String())
+			}
+
+			if field.Tag.Get("bencode") == "" {
+				enc, err := compileStruct(field.Type, structName, key, structTypeToDecoder)
+				if err != nil {
+					return nil, err
+				}
+
+				se := enc.(*structDecoder)
+				for _, dec := range se.fieldMap {
+					if dec.simpleField {
+						allFields = append(allFields, &structFieldDecoder{
+							dec:        dec.dec,
+							fieldIndex: append([]int{i}, dec.index),
+							key:        dec.key,
+						})
+					} else {
+						allFields = append(allFields, &structFieldDecoder{
+							dec:        dec.dec,
+							fieldIndex: append([]int{i}, dec.fieldIndex...),
+							key:        dec.key,
+						})
+					}
+				}
+				continue
+			}
+		}
+
 		dec, err := compile(field.Type, structName, key, structTypeToDecoder)
 		if err != nil {
 			return nil, err
 		}
 
-		fieldSet := &structFieldSet{
-			dec:      dec,
-			fieldIdx: i,
-			key:      key,
+		fieldSet := &structFieldDecoder{
+			dec:        dec,
+			fieldIndex: []int{i},
+			key:        key,
 		}
 
 		allFields = append(allFields, fieldSet)
 	}
 
 	seen := map[string]bool{}
-	for _, set := range allFields {
-		if seen[set.key] {
-			return nil, fmt.Errorf("found duplicate keys for struct %s: %s", rt.String(), set.key)
+	for _, dec := range allFields {
+		if seen[dec.key] {
+			return nil, fmt.Errorf("found duplicate keys in struct %s: %s", rt.String(), dec.key)
 		}
 
-		seen[set.key] = true
-		structDec.fieldMap[set.key] = set
+		seen[dec.key] = true
+		if len(dec.fieldIndex) != 1 {
+			structDec.fieldMap[dec.key] = dec
+			continue
+		}
+
+		structDec.fieldMap[dec.key] = &structFieldDecoder{
+			key:         dec.key,
+			dec:         dec.dec,
+			simpleField: true,
+			index:       dec.fieldIndex[0],
+		}
 	}
 
 	delete(structTypeToDecoder, rt)
@@ -70,19 +106,25 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 	return structDec, nil
 }
 
-type structFieldSet struct {
-	dec      Decoder
-	fieldIdx int
-	key      string
+type structFieldDecoder struct {
+	key string
+
+	dec Decoder
+
+	fieldIndex []int // for anonymous struct field
+
+	// non-anonymous struct field
+	simpleField bool
+	index       int
 }
 
 type structDecoder struct {
-	fieldMap   map[string]*structFieldSet
+	fieldMap   map[string]*structFieldDecoder
 	structName string
 	fieldName  string
 }
 
-func newStructDecoder(structName, fieldName string, fieldMap map[string]*structFieldSet) *structDecoder {
+func newStructDecoder(structName, fieldName string, fieldMap map[string]*structFieldDecoder) *structDecoder {
 	return &structDecoder{
 		fieldMap:   fieldMap,
 		structName: structName,
@@ -90,13 +132,13 @@ func newStructDecoder(structName, fieldName string, fieldMap map[string]*structF
 	}
 }
 
-func decodeKey(d *structDecoder, buf []byte, cursor int) ([]byte, int, *structFieldSet, error) {
+func decodeKey(d *structDecoder, buf []byte, cursor int) ([]byte, int, *structFieldDecoder, error) {
 	key, c, err := readString(buf, cursor)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	// go compiler will not escape key
+	// go compiler will not alloc key in this case
 	field := d.fieldMap[string(key)]
 
 	return key, c, field, nil
@@ -161,7 +203,18 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 			continue
 		}
 
-		cursor, err = field.dec.Decode(ctx, cursor, depth, rv.Field(field.fieldIdx))
+		var v reflect.Value
+
+		if field.simpleField {
+			v = rv.Field(field.index)
+		} else {
+			v = rv
+			for _, index := range field.fieldIndex {
+				v = v.Field(index)
+			}
+		}
+
+		cursor, err = field.dec.Decode(ctx, cursor, depth, v)
 		if err != nil {
 			return 0, fmt.Errorf("bencode: failed to decode Go struct field %s.%s: %w", d.structName, field.key, err)
 		}

@@ -449,19 +449,58 @@ func TestUnmarshal_ptr_string(t *testing.T) {
 }
 
 func TestUnmarshal_anonymous_field(t *testing.T) {
-	type N struct {
-		A int
-		B int
-	}
+	t.Run("struct", func(t *testing.T) {
+		type N struct {
+			A int
+			B int
+		}
 
-	type M struct {
-		N
-		C int
-	}
+		type M struct {
+			N
+			C int
+		}
 
-	var v M
+		var m M
+		require.NoError(t, bencode.Unmarshal([]byte("d1:Ai3e1:Bi2e1:Ci1ee"), &m))
+		require.Equal(t, M{N: N{
+			A: 3,
+			B: 2,
+		}, C: 1}, m)
+	})
 
-	require.Error(t, bencode.Unmarshal([]byte(`a:4:{s:1:"A";i:3;s:1:"B";i:2;s:1:"C";i:1;}`), &v))
+	t.Run("named", func(t *testing.T) {
+		type N struct {
+			A int
+			B int
+		}
+
+		type M struct {
+			N `bencode:"n"`
+			C int
+		}
+
+		var m M
+		require.NoError(t, bencode.Unmarshal([]byte("d1:Ci1e1:nd1:Ai3e1:Bi2eee"), &m))
+		require.Equal(t, m, M{N: N{
+			A: 3,
+			B: 2,
+		}, C: 1})
+	})
+
+	t.Run("duplicated-name", func(t *testing.T) {
+		type N struct {
+			C int
+		}
+
+		type M struct {
+			N
+			C int
+		}
+
+		var m M
+		err := bencode.Unmarshal([]byte("de"), &m)
+		require.Error(t, err)
+	})
 }
 
 func TestUnmarshal_empty_input(t *testing.T) {

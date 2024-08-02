@@ -2,7 +2,6 @@ package bencode_test
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -774,26 +773,60 @@ func TestMarshal_interface_with_method(t *testing.T) {
 }
 
 func TestMarshal_anonymous_field(t *testing.T) {
-	type N struct {
-		A int
-		B int
-	}
+	t.Run("struct", func(t *testing.T) {
+		type N struct {
+			A int
+			B int
+		}
 
-	type M struct {
-		N
-		C int
-	}
+		type M struct {
+			N
+			C int
+		}
 
-	_, err := bencode.Marshal(M{N: N{
-		A: 3,
-		B: 2,
-	}, C: 1})
-	require.Error(t, err)
-	require.Regexp(t, regexp.MustCompile("supported for Anonymous struct field has been removed.*"), err.Error())
+		actual, err := bencode.Marshal(M{N: N{
+			A: 3,
+			B: 2,
+		}, C: 1})
+		require.NoError(t, err)
+		test.StringEqual(t, "d1:Ai3e1:Bi2e1:Ci1ee", string(actual))
+	})
+
+	t.Run("named", func(t *testing.T) {
+		type N struct {
+			A int
+			B int
+		}
+
+		type M struct {
+			N `bencode:"n"`
+			C int
+		}
+
+		actual, err := bencode.Marshal(M{N: N{
+			A: 3,
+			B: 2,
+		}, C: 1})
+		require.NoError(t, err)
+		test.StringEqual(t, "d1:Ci1e1:nd1:Ai3e1:Bi2eee", string(actual))
+	})
+
+	t.Run("duplicated-name", func(t *testing.T) {
+		type N struct {
+			C int
+		}
+
+		type M struct {
+			N
+			C int
+		}
+
+		_, err := bencode.Marshal(M{})
+		require.Error(t, err)
+	})
 }
 
 func TestRecursivePanic(t *testing.T) {
-
 	type O struct {
 		Name string
 		E    []O
