@@ -49,19 +49,11 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 
 				se := enc.(*structDecoder)
 				for _, dec := range se.fieldMap {
-					if dec.simpleField {
-						allFields = append(allFields, &structFieldDecoder{
-							dec:        dec.dec,
-							fieldIndex: append([]int{i}, dec.index),
-							key:        dec.key,
-						})
-					} else {
-						allFields = append(allFields, &structFieldDecoder{
-							dec:        dec.dec,
-							fieldIndex: append([]int{i}, dec.fieldIndex...),
-							key:        dec.key,
-						})
-					}
+					allFields = append(allFields, &structFieldDecoder{
+						dec:        dec.dec,
+						fieldIndex: append([]int{i}, dec.fieldIndex...),
+						key:        dec.key,
+					})
 				}
 				continue
 			}
@@ -88,17 +80,7 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 		}
 
 		seen[dec.key] = true
-		if len(dec.fieldIndex) != 1 {
-			structDec.fieldMap[dec.key] = dec
-			continue
-		}
-
-		structDec.fieldMap[dec.key] = &structFieldDecoder{
-			key:         dec.key,
-			dec:         dec.dec,
-			simpleField: true,
-			index:       dec.fieldIndex[0],
-		}
+		structDec.fieldMap[dec.key] = dec
 	}
 
 	delete(structTypeToDecoder, rt)
@@ -112,10 +94,6 @@ type structFieldDecoder struct {
 	dec Decoder
 
 	fieldIndex []int // for anonymous struct field
-
-	// non-anonymous struct field
-	simpleField bool
-	index       int
 }
 
 type structDecoder struct {
@@ -203,15 +181,9 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 			continue
 		}
 
-		var v reflect.Value
-
-		if field.simpleField {
-			v = rv.Field(field.index)
-		} else {
-			v = rv
-			for _, index := range field.fieldIndex {
-				v = v.Field(index)
-			}
+		v := rv
+		for _, index := range field.fieldIndex {
+			v = v.Field(index)
 		}
 
 		cursor, err = field.dec.Decode(ctx, cursor, depth, v)

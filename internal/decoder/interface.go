@@ -56,29 +56,6 @@ var (
 	interfaceIntType      = reflect.TypeFor[int64]()
 )
 
-func decodeUnmarshaler(buf []byte, cursor int, depth int64, unmarshaler Unmarshaler) (int, error) {
-	start := cursor
-	end, err := skipValue(buf, cursor, depth)
-	if err != nil {
-		return 0, err
-	}
-	src := buf[start:end]
-	if err := unmarshaler.UnmarshalBencode(src); err != nil {
-		return 0, err
-	}
-	return end, nil
-}
-
-func (d *interfaceDecoder) errUnmarshalType(rt reflect.Type, offset int) *errors.UnmarshalTypeError {
-	return &errors.UnmarshalTypeError{
-		Value:  rt.String(),
-		Type:   rt,
-		Offset: offset,
-		Struct: d.structName,
-		Field:  d.fieldName,
-	}
-}
-
 func (d *interfaceDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	buf := ctx.Buf
 	if cursor >= len(buf) {
@@ -123,27 +100,4 @@ func (d *interfaceDecoder) Decode(ctx *Context, cursor int, depth int64, rv refl
 	}
 
 	return cursor, errors.ErrInvalidBeginningOfValue(buf[cursor], cursor)
-}
-
-type mapKeyDecoder struct {
-	strDecoder *stringDecoder
-}
-
-func (d *mapKeyDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
-	buf := ctx.Buf
-
-	switch buf[cursor] {
-	case 's':
-		var v string
-		ptr := reflect.ValueOf(&v).Elem()
-		cursor, err := d.strDecoder.Decode(ctx, cursor, depth, ptr)
-		if err != nil {
-			return 0, err
-		}
-		rv.Set(ptr)
-		return cursor, nil
-	// string key
-	default:
-		return 0, errors.ErrExpecting("array key", buf, cursor)
-	}
 }

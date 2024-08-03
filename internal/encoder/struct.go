@@ -10,9 +10,6 @@ import (
 )
 
 type structEncoder struct {
-	simpleIndex bool
-	index       int
-
 	fieldIndex []int
 
 	// a direct value handler, like `encodeInt`
@@ -87,14 +84,9 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 		b = append(b, 'd')
 
 		for _, field := range fields {
-			var v reflect.Value
-			if field.simpleIndex {
-				v = rv.Field(field.index)
-			} else {
-				v = rv
-				for _, index := range field.fieldIndex {
-					v = v.Field(index)
-				}
+			v := rv
+			for _, index := range field.fieldIndex {
+				v = v.Field(index)
 			}
 
 			if field.omitEmpty {
@@ -138,24 +130,6 @@ func compileStructFieldsEncoders(rt reflect.Type, seen seenMap) ([]structEncoder
 		}
 
 		encoders = append(encoders, enc...)
-	}
-
-	optimizedEncoders := make([]structEncoder, 0, len(encoders))
-
-	for _, enc := range encoders {
-		if len(enc.fieldIndex) == 1 {
-			optimizedEncoders = append(optimizedEncoders, structEncoder{
-				simpleIndex: true,
-				index:       enc.fieldIndex[0],
-				encode:      enc.encode,
-				fieldName:   enc.fieldName,
-				omitEmpty:   enc.omitEmpty,
-				isZero:      enc.isZero,
-				ptr:         enc.ptr,
-			})
-		} else {
-			optimizedEncoders = append(optimizedEncoders, enc)
-		}
 	}
 
 	return encoders, nil

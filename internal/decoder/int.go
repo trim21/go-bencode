@@ -25,16 +25,6 @@ func newIntDecoder(rt reflect.Type, structName, fieldName string) *intDecoder {
 	}
 }
 
-func (d *intDecoder) typeError(buf []byte, offset int) *errors.UnmarshalTypeError {
-	return &errors.UnmarshalTypeError{
-		Value:  fmt.Sprintf("number %s", string(buf)),
-		Type:   d.rt,
-		Struct: d.structName,
-		Field:  d.fieldName,
-		Offset: offset,
-	}
-}
-
 func decodeIntegerBytes(buf []byte, cursor int) ([]byte, int, error) {
 	if buf[cursor] != 'i' {
 		return nil, cursor, errors.ErrExpecting("integer", buf, cursor)
