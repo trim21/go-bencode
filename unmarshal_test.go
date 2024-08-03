@@ -2,6 +2,7 @@ package bencode_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -603,4 +604,86 @@ func TestUnmarshal_unorderedKey(t *testing.T) {
 
 	var a any
 	require.Error(t, bencode.Unmarshal([]byte(`d1:01:01:11:10:0:e`), &a))
+}
+
+type userType struct {
+	t time.Time
+}
+
+func (u userType) MarshalBencode() ([]byte, error) {
+	return bencode.Marshal(u.t.Format(time.RFC3339))
+}
+
+func (u *userType) UnmarshalBencode(bytes []byte) error {
+	var s string
+	err := bencode.Unmarshal(bytes, &s)
+	if err != nil {
+		return err
+	}
+
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return err
+	}
+
+	u.t = t
+
+	return nil
+}
+
+var _ bencode.Unmarshaler = (*userType)(nil)
+var _ bencode.Marshaler = userType{}
+
+func BenchmarkUnmarshal(b *testing.B) {
+	type S struct {
+		Name   string
+		Length int
+	}
+
+	type Data struct {
+		I8   int8
+		Int  int
+		U8   uint8
+		Uint uint
+		Raw  bencode.RawBytes
+
+		Marshaler userType
+		M         map[string]string
+
+		Slice []S
+
+		Str       string
+		ByteSlice []byte
+		ByteArray [20]byte
+	}
+
+	encoded, err := bencode.Marshal(Data{
+		I8:        1,
+		Int:       2,
+		U8:        3,
+		Uint:      4,
+		M:         map[string]string{"1": "a"},
+		Raw:       bencode.RawBytes("i10e"),
+		Marshaler: userType{t: time.Now()},
+		Str:       "ss",
+		ByteSlice: []byte("hello world"),
+		Slice: []S{{
+			Name:   "index.html",
+			Length: 100,
+		}, {
+			Name:   "index.js",
+			Length: 2000,
+		}},
+		ByteArray: [20]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+	})
+
+	require.NoError(b, err)
+
+	for i := 0; i < b.N; i++ {
+		var v Data
+		err := bencode.Unmarshal(encoded, &v)
+		if err != nil {
+			panic(err)
+		}
+	}
 }

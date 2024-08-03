@@ -71,7 +71,7 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 }
 
 func stringKeyCompare(a reflect.Value, b reflect.Value) int {
-	return strings.Compare(a.Interface().(string), b.Interface().(string))
+	return strings.Compare(a.String(), b.String())
 }
 
 func arrayByteKeyCompare(a reflect.Value, b reflect.Value) int {

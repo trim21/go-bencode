@@ -2,6 +2,7 @@ package bencode_test
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -1027,30 +1028,53 @@ func TestMarshal_byteArray(t *testing.T) {
 	}
 }
 
-func TestMarshal_marshaler_byteArray_map(t *testing.T) {
-	var s = map[[20]byte]int{
-		[20]byte{0, 1, 2, 3}: 1,
+func BenchmarkMarshal(b *testing.B) {
+	type S struct {
+		Name   string
+		Length int
 	}
 
-	actual, err := bencode.Marshal(s)
-	require.NoError(t, err)
-	test.StringEqual(t, "d20:\x00\x01\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00i1ee", string(actual))
-}
+	type Data struct {
+		I8   int8
+		Int  int
+		U8   uint8
+		Uint uint
+		Raw  bencode.RawBytes
 
-func BenchmarkMarshal_byteArray(b *testing.B) {
-	var buf [20]byte
+		Marshaler userMarshaler
+		M         map[string]string
 
-	b.Run("value", func(b *testing.B) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			_, _ = bencode.Marshal(buf)
+		Slice []S
+
+		Str       string
+		ByteSlice []byte
+		ByteArray [20]byte
+	}
+
+	var v = Data{
+		I8:        1,
+		Int:       2,
+		U8:        3,
+		Uint:      4,
+		M:         map[string]string{"1": "a"},
+		Raw:       bencode.RawBytes("i10e"),
+		Marshaler: userMarshaler{t: time.Now()},
+		Str:       "ss",
+		ByteSlice: []byte("hello world"),
+		Slice: []S{{
+			Name:   "index.html",
+			Length: 100,
+		}, {
+			Name:   "index.js",
+			Length: 2000,
+		}},
+		ByteArray: [20]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+	}
+
+	for i := 0; i < b.N; i++ {
+		err := bencode.NewEncoder(io.Discard).Encode(v)
+		if err != nil {
+			panic(err)
 		}
-	})
-
-	b.Run("ptr", func(b *testing.B) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			_, _ = bencode.Marshal(&buf)
-		}
-	})
+	}
 }
