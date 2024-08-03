@@ -34,7 +34,7 @@ If you want to encode customize type as struct field with `omitempty`,
 do implement both `bencode.Marshaler` and `bencode.IsZeroValue`,
 so encoder could know if it's a empty value and skip fields.
 
-**### Unmarshal**
+### Unmarshal
 
 go `any` type will be decoded as `map[string]any`, `[]any`, `int64` or `string`.
 
