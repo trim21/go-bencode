@@ -827,6 +827,54 @@ func TestMarshal_anonymous_field(t *testing.T) {
 	})
 }
 
+type GenericOmitEmpty[T any] struct {
+	Value T `bencode:"value,omitempty"`
+}
+
+func TestOmitEmpty(t *testing.T) {
+	equalMarshaled(t, "de", GenericOmitEmpty[uint8]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[uint16]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[uint32]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[uint]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[int8]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[int16]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[int32]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[int64]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[int]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[string]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[bencode.RawBytes]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[map[string]string]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[[]string]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[[]byte]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[[3]int]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[[3]byte]{})
+
+	equalMarshaled(t, "de", GenericOmitEmpty[*uint8]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*uint16]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*uint32]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*uint]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*int8]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*int16]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*int32]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*int64]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*int]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*string]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*[3]int]{})
+	equalMarshaled(t, "de", GenericOmitEmpty[*[3]byte]{})
+
+	equalMarshaled(t, "d5:valuel1:1ee", GenericOmitEmpty[[]string]{Value: []string{"1"}})
+	equalMarshaled(t, "d5:valuei1ee", GenericOmitEmpty[int]{Value: 1})
+}
+
+func equalMarshaled(t *testing.T, a string, v any) {
+	t.Helper()
+
+	actual, err := bencode.Marshal(v)
+	require.NoError(t, err)
+
+	test.StringEqual(t, a, string(actual))
+}
+
 func TestRecursivePanic(t *testing.T) {
 	type O struct {
 		Name string
@@ -859,8 +907,17 @@ func (u userMarshaler) MarshalBencode() ([]byte, error) {
 
 var _ bencode.Marshaler = userMarshaler{}
 
-func TestUserMarshaler(t *testing.T) {
+type userMarshaler2 struct {
+	t time.Time
+}
 
+func (u *userMarshaler2) MarshalBencode() ([]byte, error) {
+	return bencode.Marshal(u.t.Format(time.RFC3339))
+}
+
+var _ bencode.Marshaler = (*userMarshaler2)(nil)
+
+func TestUserMarshaler(t *testing.T) {
 	now, err := time.Parse(time.RFC3339, "2024-07-16T01:02:03+08:00")
 	require.NoError(t, err)
 
@@ -920,7 +977,6 @@ var go118TestCase = []Case{
 }
 
 func TestMarshal_go118_concrete_types(t *testing.T) {
-
 	for _, data := range go118TestCase {
 		data := data
 		t.Run(data.Name, func(t *testing.T) {
