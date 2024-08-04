@@ -1,6 +1,7 @@
 package encoder
 
 import (
+	"errors"
 	"reflect"
 )
 
@@ -15,6 +16,10 @@ func compileMarshaler(rt reflect.Type) (encoder, error) {
 		raw, err := rv.Interface().(Marshaler).MarshalBencode()
 		if err != nil {
 			return nil, err
+		}
+
+		if len(raw) == 0 {
+			return nil, errors.New("bencode: bencode.Marshaler return empty bytes")
 		}
 
 		return append(b, raw...), nil
