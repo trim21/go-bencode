@@ -56,3 +56,15 @@ func (e *Encoder) Encode(v any) error {
 	_, err = e.w.Write(ctx.Buf)
 	return err
 }
+
+func AppendInt(b []byte, i int64) []byte {
+	return encoder.AppendInt(b, i)
+}
+
+func AppendStr(b []byte, s string) []byte {
+	return encoder.AppendStr(b, s)
+}
+
+func AppendBytes(b []byte, s []byte) []byte {
+	return encoder.AppendBytes(b, s)
+}

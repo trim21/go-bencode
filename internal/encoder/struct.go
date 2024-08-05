@@ -100,7 +100,7 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 					continue
 				}
 
-				b = appendString(b, field.fieldName)
+				b = AppendStr(b, field.fieldName)
 				b, err = field.encode(ctx, b, v.Elem())
 				if err != nil {
 					return b, err
@@ -108,7 +108,7 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 				continue
 			}
 
-			b = appendString(b, field.fieldName)
+			b = AppendStr(b, field.fieldName)
 			b, err = field.encode(ctx, b, v)
 			if err != nil {
 				return b, err
