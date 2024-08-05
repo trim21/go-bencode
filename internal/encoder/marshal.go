@@ -18,7 +18,7 @@ func Marshal(v any) ([]byte, error) {
 }
 
 func MarshalCtx(ctx *Context, v any) error {
-	b, err := encode(ctx, ctx.Buf[:0], v)
+	b, err := encode(ctx, ctx.Buf, v)
 	if err != nil {
 		return err
 	}
