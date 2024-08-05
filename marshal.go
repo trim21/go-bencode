@@ -25,7 +25,15 @@ type IsZeroValue interface {
 }
 
 func Marshal(v any) ([]byte, error) {
-	return encoder.Marshal(v)
+	ctx := encoder.NewCtx()
+	defer encoder.FreeCtx(ctx)
+
+	err := encoder.MarshalCtx(ctx, v)
+	if err != nil {
+		return nil, err
+	}
+
+	return append([]byte(nil), ctx.Buf...), nil
 }
 
 type Encoder struct {
