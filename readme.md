@@ -36,6 +36,8 @@ If you want to encode customize type as struct field with `omitempty`,
 do implement both `bencode.Marshaler` and `bencode.IsZeroValue`,
 so encoder could know if it's a empty value and skip fields.
 
+see [bencode.RawBytes](https://pkg.go.dev/github.com/trim21/go-bencode#RawBytes) for example.
+
 Bencode doesn't have null type, so all struct field with pointer type(`*T`) will get `omitempty` by default.
 
 ### Unmarshal
