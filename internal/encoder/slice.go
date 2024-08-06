@@ -1,6 +1,7 @@
 package encoder
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -22,6 +23,13 @@ func compileSlice(rt reflect.Type, seen seenMap) (encoder, error) {
 			return appendEmptyList(b), nil
 		}
 
+		if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
+			ptr := rv.UnsafePointer()
+			if _, ok := ctx.ptrSeen[ptr]; ok {
+				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
+			}
+		}
+
 		b = append(b, 'l')
 
 		length := rv.Len()
@@ -33,6 +41,9 @@ func compileSlice(rt reflect.Type, seen seenMap) (encoder, error) {
 				return b, err
 			}
 		}
+
+		ctx.ptrLevel--
+
 		return append(b, 'e'), nil
 	}, nil
 }

@@ -28,24 +28,24 @@ type Container struct {
 }
 
 type Inner struct {
-	V int    `bencode:"v" json:"v"`
-	S string `bencode:"a long string name replace field name" json:"a long string name replace field name"`
+	V int    `bencode:"v"`
+	S string `bencode:"a long string name replace field name"`
 }
 
 type TestData struct {
-	Users []User                     `bencode:"users" json:"users"`
-	Obj   Inner                      `bencode:"obj" json:"obj"`
-	B     bool                       `bencode:"ok" json:"ok"`
-	Map   map[string]struct{ V int } `bencode:"map" json:"map"`
+	Users []User                     `bencode:"users"`
+	Obj   Inner                      `bencode:"obj"`
+	B     bool                       `bencode:"ok"`
+	Map   map[string]struct{ V int } `bencode:"map"`
 }
 
 type User struct {
-	ID   uint64 `bencode:"id" json:"id"`
-	Name string `bencode:"name" json:"name"`
+	ID   uint64 `bencode:"id"`
+	Name string `bencode:"name"`
 }
 
 type Item struct {
-	V int `json:"v" bencode:"v"`
+	V int `bencode:"v"`
 }
 
 type ContainerNonAnonymous struct {

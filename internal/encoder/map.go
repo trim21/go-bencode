@@ -2,10 +2,13 @@ package encoder
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
 )
+
+const startDetectingCyclesAfter = 1000
 
 // !!! not safe to use in reflect case !!!
 func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
@@ -48,6 +51,13 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 			return appendEmptyMap(b), nil
 		}
 
+		if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
+			ptr := rv.UnsafePointer()
+			if _, ok := ctx.ptrSeen[ptr]; ok {
+				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
+			}
+		}
+
 		b = append(b, 'd')
 
 		keys := rv.MapKeys()
@@ -57,7 +67,7 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 		for _, key := range keys {
 			b, err = keyEncoder(ctx, b, key)
 			if err != nil {
-				return b, err
+				return b, fmt.Errorf("encountered a cycle via %s", rv.Type())
 			}
 
 			b, err = valueEncoder(ctx, b, rv.MapIndex(key))
@@ -65,6 +75,8 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 				return b, err
 			}
 		}
+
+		ctx.ptrLevel--
 
 		return append(b, 'e'), nil
 	}, nil

@@ -2,18 +2,22 @@ package encoder
 
 import (
 	"sync"
+	"unsafe"
 )
 
 var ctxPool = sync.Pool{
 	New: func() any {
 		return &Context{
-			Buf: make([]byte, 0, 8*1024),
+			ptrSeen: make(map[unsafe.Pointer]struct{}, 100),
+			Buf:     make([]byte, 0, 16*1024),
 		}
 	},
 }
 
 type Context struct {
-	Buf []byte
+	ptrLevel int
+	ptrSeen  map[unsafe.Pointer]struct{}
+	Buf      []byte
 }
 
 func NewCtx() *Context {
@@ -25,6 +29,8 @@ func FreeCtx(ctx *Context) {
 		return
 	}
 
+	ctx.ptrLevel = 0
+	clear(ctx.ptrSeen)
 	ctx.Buf = ctx.Buf[:0]
 	ctxPool.Put(ctx)
 }
