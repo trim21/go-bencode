@@ -30,6 +30,8 @@ See [examples](./example_test.go)
 
 ### Marshal
 
+Bencode doesn't have null type, so all ptr type (`*T`) on struct field will get omitempty by default.
+
 If you want to encode customize type as struct field with `omitempty`,
 do implement both `bencode.Marshaler` and `bencode.IsZeroValue`,
 so encoder could know if it's a empty value and skip fields.
