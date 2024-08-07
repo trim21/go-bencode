@@ -41,6 +41,7 @@ func (d *sliceDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 
 	cursor++
 
+	// we choose 8 because many DHT impl use 8 as default k
 	sCap := 8
 	index := 0
 

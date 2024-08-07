@@ -87,6 +87,39 @@ func TestUnmarshal(t *testing.T) {
 		require.Error(t, bencode.Unmarshal([]byte("de"), &s))
 		require.Error(t, bencode.Unmarshal([]byte("le"), &s))
 	})
+
+	t.Run("any", func(t *testing.T) {
+		var s any
+		require.NoError(t, bencode.Unmarshal([]byte("1:e"), &s))
+		require.Equal(t, "e", s)
+		s = nil
+
+		require.Error(t, bencode.Unmarshal([]byte("1:"), &s))
+		require.Error(t, bencode.Unmarshal([]byte("1:aq"), &s))
+		require.Error(t, bencode.Unmarshal([]byte("ie"), &s))
+		require.Error(t, bencode.Unmarshal([]byte("i-0e"), &s))
+		//require.Error(t, bencode.Unmarshal([]byte("i100000000000000000000000000000000000000000e"), &s))
+
+		s = nil
+		require.NoError(t, bencode.Unmarshal([]byte("i1e"), &s))
+		require.Equal(t, int64(1), s)
+
+		s = nil
+		require.NoError(t, bencode.Unmarshal([]byte("de"), &s))
+		require.Equal(t, map[string]any{}, s)
+
+		s = nil
+		require.NoError(t, bencode.Unmarshal([]byte("d1:ai1e1:b1:se"), &s))
+		require.Equal(t, map[string]any{"a": int64(1), "b": "s"}, s)
+
+		s = nil
+		require.NoError(t, bencode.Unmarshal([]byte("le"), &s))
+		require.Equal(t, []any{}, s)
+
+		s = nil
+		require.NoError(t, bencode.Unmarshal([]byte("li1ei2ei3ei4ee"), &s))
+		require.Equal(t, []any{int64(1), int64(2), int64(3), int64(4)}, s)
+	})
 }
 
 func TestUnmarshal_struct(t *testing.T) {
@@ -679,11 +712,23 @@ func BenchmarkUnmarshal(b *testing.B) {
 
 	require.NoError(b, err)
 
-	for i := 0; i < b.N; i++ {
-		var v Data
-		err := bencode.Unmarshal(encoded, &v)
-		if err != nil {
-			panic(err)
+	b.Run("type", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var v Data
+			err := bencode.Unmarshal(encoded, &v)
+			if err != nil {
+				panic(err)
+			}
 		}
-	}
+	})
+
+	b.Run("any", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var v any
+			err := bencode.Unmarshal(encoded, &v)
+			if err != nil {
+				panic(err)
+			}
+		}
+	})
 }
