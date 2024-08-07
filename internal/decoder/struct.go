@@ -135,7 +135,7 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 	}
 
 	if buf[cursor] != 'd' {
-		return 0, errors.ErrInvalidBeginningOfValue(buf[cursor], cursor)
+		return 0, errors.ErrExpecting("dict", buf, cursor)
 	}
 
 	cursor++

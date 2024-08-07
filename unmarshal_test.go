@@ -1,6 +1,7 @@
 package bencode_test
 
 import (
+	"math/big"
 	"testing"
 	"time"
 
@@ -367,6 +368,28 @@ func TestUnmarshal_array(t *testing.T) {
 		err := bencode.Unmarshal([]byte(raw), &c)
 		require.NoError(t, err)
 		require.Equal(t, [5]string{"one", "two", "q", "a", "zx"}, c.Value)
+	})
+}
+
+func TestUnmarshal_bigInt(t *testing.T) {
+	t.Run("value", func(t *testing.T) {
+		var v = big.Int{}
+		require.NoError(t, bencode.Unmarshal([]byte("i0e"), &v))
+		require.EqualValues(t, 0, v.Int64())
+
+		v = big.Int{}
+		require.NoError(t, bencode.Unmarshal([]byte("i1e"), &v))
+		require.EqualValues(t, 1, v.Int64())
+	})
+
+	t.Run("struct", func(t *testing.T) {
+		vv := Generic[big.Int]{}
+		require.NoError(t, bencode.Unmarshal([]byte("d5:Valuei1ee"), &vv))
+		require.EqualValues(t, 1, vv.Value.Int64())
+
+		v := Generic[*big.Int]{}
+		require.NoError(t, bencode.Unmarshal([]byte("d5:Valuei1ee"), &v))
+		require.EqualValues(t, 1, vv.Value.Int64())
 	})
 }
 

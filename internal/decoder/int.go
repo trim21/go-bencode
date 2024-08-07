@@ -3,6 +3,7 @@ package decoder
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 	"reflect"
 	"strconv"
 
@@ -110,4 +111,56 @@ func validIntBytes(buf []byte) bool {
 		}
 	}
 	return true
+}
+
+var typeBigInt = reflect.TypeFor[big.Int]()
+var typeBigIntPtr = reflect.TypeFor[*big.Int]()
+
+type bigIntDecoder struct {
+}
+
+func (b *bigIntDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
+	buf, c, err := decodeIntegerBytes(ctx.Buf, cursor)
+	if err != nil {
+		return 0, err
+	}
+
+	cursor = c
+
+	v := rv.Interface().(big.Int)
+
+	_, ok := v.SetString(string(buf), 10)
+	if !ok {
+		return 0, errors.ErrSyntax("bencode: invalid int", cursor)
+	}
+
+	rv.Set(reflect.ValueOf(v))
+
+	return c, nil
+}
+
+type bigIntPtrDecoder struct {
+}
+
+func (b *bigIntPtrDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
+	buf, c, err := decodeIntegerBytes(ctx.Buf, cursor)
+	if err != nil {
+		return 0, err
+	}
+
+	cursor = c
+
+	v := rv.Interface().(*big.Int)
+
+	if v == nil {
+		v = &big.Int{}
+		rv.Set(reflect.ValueOf(v))
+	}
+
+	_, ok := v.SetString(string(buf), 10)
+	if !ok {
+		return 0, errors.ErrSyntax("bencode: invalid int", cursor)
+	}
+
+	return c, nil
 }

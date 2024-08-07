@@ -57,6 +57,10 @@ func compile(rt reflect.Type, seen seenMap) (encoder, error) {
 		return encodeBytesSlice, nil
 	case rt.Kind() == reflect.Array && rt.Elem().Kind() == reflect.Uint8:
 		return compileBytesArray(rt)
+	case rt == typeBigInt:
+		return encodeBigInt, nil
+	case rt == typeBigIntPtr:
+		return encodeBigIntPtr, nil
 	}
 
 	switch rt.Kind() {

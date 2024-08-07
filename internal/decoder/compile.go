@@ -50,6 +50,10 @@ func compile(rt reflect.Type, structName, fieldName string, structTypeToDecoder 
 		return newByteSliceDecoder(rt, structName, fieldName), nil
 	case rt.Kind() == reflect.Array && rt.Elem().Kind() == reflect.Uint8:
 		return newByteArrayDecoder(rt, structName, fieldName), nil
+	case rt == typeBigInt:
+		return &bigIntDecoder{}, nil
+	case rt == typeBigIntPtr:
+		return &bigIntPtrDecoder{}, nil
 	}
 
 	switch rt.Kind() {

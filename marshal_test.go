@@ -3,6 +3,8 @@ package bencode_test
 import (
 	"fmt"
 	"io"
+	"math"
+	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -225,6 +227,42 @@ var testCase = []Case{
 			D: new(string),
 		},
 		Expected: `d1:D0:e`,
+	},
+
+	{
+		Name:     "big.Int 0",
+		Data:     big.Int{},
+		Expected: `i0e`,
+	},
+
+	{
+		Name:     "big.Int -0",
+		Data:     (&big.Int{}).SetInt64(-0),
+		Expected: `i0e`,
+	},
+
+	{
+		Name:     "big.Int 200",
+		Data:     (&big.Int{}).SetInt64(200),
+		Expected: `i200e`,
+	},
+
+	{
+		Name:     "big.Int -200",
+		Data:     (&big.Int{}).SetInt64(-200),
+		Expected: `i-200e`,
+	},
+
+	{
+		Name:     "big.Int math.MaxUint64 +1",
+		Data:     (&big.Int{}).Add((&big.Int{}).SetUint64(math.MaxUint64), big.NewInt(1)), // math.MaxUint64 +1
+		Expected: `i18446744073709551616e`,
+	},
+
+	{
+		Name:     "big.Int -math.MaxUint64-1",
+		Data:     (&big.Int{}).Mul((&big.Int{}).Add((&big.Int{}).SetUint64(math.MaxUint64), big.NewInt(1)), big.NewInt(-1)), // -math.MaxUint64 -1
+		Expected: `i-18446744073709551616e`,
 	},
 }
 
