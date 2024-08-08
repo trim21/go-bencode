@@ -61,9 +61,9 @@ func compileStruct(rt reflect.Type, seen seenMap) (encoder, error) {
 
 // struct don't have `omitempty` tag, fast path
 func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
-	fields, err := compileStructFieldsEncoders(rt, seen)
-	if err != nil {
-		return nil, err
+	fields, ce := compileStructFieldsEncoders(rt, seen)
+	if ce != nil {
+		return nil, ce
 	}
 
 	slices.SortFunc(fields, func(a, b structEncoder) int {
@@ -86,56 +86,62 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 	}
 
 	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
-		// shadow compiler's error
-		var err error
-
 		b = append(b, 'd')
 
+		var err error
 		for _, field := range fields {
-			v := rv
-			for _, index := range field.fieldIndex {
-				v = v.Field(index)
-			}
-
-			if field.omitEmpty {
-				if field.isZero(v) {
-					continue
-				}
-			}
-
-			var ptr unsafe.Pointer
-			if field.ptr {
-				if v.IsNil() {
-					continue
-				}
-
-				if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
-					ptr = v.UnsafePointer()
-					if _, ok := ctx.ptrSeen[ptr]; ok {
-						return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
-					}
-					ctx.ptrSeen[ptr] = empty{}
-				}
-
-				v = v.Elem()
-			}
-
-			b = AppendStr(b, field.fieldName)
-			b, err = field.encode(ctx, b, v)
+			b, err = encodeStructField(ctx, b, rv, field)
 			if err != nil {
 				return b, err
-			}
-
-			if field.ptr {
-				ctx.ptrLevel--
-				if ptr != zeroPtr {
-					delete(ctx.ptrSeen, ptr)
-				}
 			}
 		}
 
 		return append(b, 'e'), nil
 	}, nil
+}
+
+func encodeStructField(ctx *Context, b []byte, rv reflect.Value, field structEncoder) ([]byte, error) {
+	var err error
+	v := rv
+	for _, index := range field.fieldIndex {
+		v = v.Field(index)
+	}
+
+	if field.omitEmpty {
+		if field.isZero(v) {
+			return b, nil
+		}
+	}
+
+	var ptr unsafe.Pointer
+	if field.ptr {
+		if v.IsNil() {
+			return b, nil
+		}
+
+		if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
+			ptr = v.UnsafePointer()
+			if _, ok := ctx.ptrSeen[ptr]; ok {
+				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
+			}
+			ctx.ptrSeen[ptr] = empty{}
+			defer delete(ctx.ptrSeen, ptr)
+		}
+
+		v = v.Elem()
+	}
+
+	b = AppendStr(b, field.fieldName)
+	b, err = field.encode(ctx, b, v)
+	if err != nil {
+		return b, err
+	}
+
+	if field.ptr {
+		ctx.ptrLevel--
+	}
+
+	return b, nil
 }
 
 func compileStructFieldsEncoders(rt reflect.Type, seen seenMap) ([]structEncoder, error) {
