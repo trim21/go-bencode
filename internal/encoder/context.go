@@ -8,13 +8,13 @@ import (
 var ctxPool = sync.Pool{
 	New: func() any {
 		return &Context{
-			ptrSeen: make(map[unsafe.Pointer]struct{}, 100),
+			ptrSeen: make(map[unsafe.Pointer]empty, 100),
 			Buf:     make([]byte, 0, 16*1024),
 		}
 	},
 }
 
-type empty = struct{}
+type empty struct{}
 
 type Context struct {
 	ptrLevel int

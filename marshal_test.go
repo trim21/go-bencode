@@ -921,7 +921,7 @@ type RecursiveB struct {
 }
 
 func TestRecursive(t *testing.T) {
-	t.Run("no-ref", func(t *testing.T) {
+	t.Run("type", func(t *testing.T) {
 		type O struct {
 			Name string
 			E    []O
@@ -943,7 +943,7 @@ func TestRecursive(t *testing.T) {
 		test.StringEqual(t, expected, actual)
 	})
 
-	t.Run("no-ref", func(t *testing.T) {
+	t.Run("value", func(t *testing.T) {
 		var a RecursiveA
 		var b RecursiveB
 		a.Value = &b

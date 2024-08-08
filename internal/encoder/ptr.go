@@ -33,6 +33,8 @@ func deRefNilEncoder(enc encoder) encoder {
 			if _, ok := ctx.ptrSeen[ptr]; ok {
 				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
 			}
+			ctx.ptrSeen[ptr] = empty{}
+			defer delete(ctx.ptrSeen, ptr)
 		}
 
 		var err error
