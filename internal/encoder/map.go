@@ -17,7 +17,7 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 	valueType := rt.Elem()
 
 	var keyEncoder encoder
-	var err error
+	var ce error
 
 	var keyCompare func(reflect.Value, reflect.Value) int
 
@@ -26,19 +26,19 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 		keyEncoder = encodeString
 		keyCompare = stringKeyCompare
 	case keyType.Kind() == reflect.Array && keyType.Elem().Kind() == reflect.Uint8:
-		keyEncoder, err = compileBytesArray(keyType)
+		keyEncoder, ce = compileBytesArray(keyType)
 		keyCompare = arrayByteKeyCompare
 	default:
 		return nil, &UnsupportedTypeAsMapKeyError{Type: keyType}
 	}
 
-	if err != nil {
-		return nil, err
+	if ce != nil {
+		return nil, ce
 	}
 
-	valueEncoder, err := compile(valueType, seen)
-	if err != nil {
-		return nil, err
+	valueEncoder, ce := compile(valueType, seen)
+	if ce != nil {
+		return nil, ce
 	}
 
 	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
@@ -69,7 +69,7 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 		for _, key := range keys {
 			b, err = keyEncoder(ctx, b, key)
 			if err != nil {
-				return b, fmt.Errorf("encountered a cycle via %s", rv.Type())
+				return b, err
 			}
 
 			b, err = valueEncoder(ctx, b, rv.MapIndex(key))

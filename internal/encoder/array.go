@@ -7,9 +7,9 @@ import (
 func compileArray(rt reflect.Type) (encoder, error) {
 	size := rt.Len()
 
-	enc, err := compileWithCache(rt.Elem())
-	if err != nil {
-		return nil, err
+	enc, ce := compileWithCache(rt.Elem())
+	if ce != nil {
+		return nil, ce
 	}
 
 	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
