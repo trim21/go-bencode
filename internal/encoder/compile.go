@@ -19,7 +19,7 @@ func compileWithCache(rt reflect.Type) (encoder, error) {
 	if codeSet, exists := opcodeMap[rt]; exists {
 		return codeSet, nil
 	}
-	codeSet, err := compileType(rt)
+	codeSet, err := compile(rt, seenMap{})
 	if err != nil {
 		return nil, err
 	}
@@ -36,10 +36,6 @@ func storeEncoder(rt reflect.Type, set encoder, m map[reflect.Type]encoder) {
 	}
 
 	cachedEncoderMap.Store(&newEncoderMap)
-}
-
-func compileType(rt reflect.Type) (encoder, error) {
-	return compile(rt, seenMap{})
 }
 
 func compile(rt reflect.Type, seen seenMap) (encoder, error) {
