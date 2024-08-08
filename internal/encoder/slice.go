@@ -28,6 +28,8 @@ func compileSlice(rt reflect.Type, seen seenMap) (encoder, error) {
 			if _, ok := ctx.ptrSeen[ptr]; ok {
 				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
 			}
+			ctx.ptrSeen[ptr] = empty{}
+			defer delete(ctx.ptrSeen, ptr)
 		}
 
 		b = append(b, 'l')
