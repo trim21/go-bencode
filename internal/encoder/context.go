@@ -14,9 +14,11 @@ var ctxPool = sync.Pool{
 	},
 }
 
+type empty = struct{}
+
 type Context struct {
 	ptrLevel int
-	ptrSeen  map[unsafe.Pointer]struct{}
+	ptrSeen  map[unsafe.Pointer]empty
 	Buf      []byte
 }
 

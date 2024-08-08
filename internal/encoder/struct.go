@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"unsafe"
 
 	"github.com/trim21/go-bencode/internal/runtime"
 )
@@ -31,6 +32,8 @@ type structRecEncoder struct {
 func (s *structRecEncoder) Encode(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	return s.enc(ctx, b, rv)
 }
+
+var zeroPtr unsafe.Pointer
 
 func compileStruct(rt reflect.Type, seen seenMap) (encoder, error) {
 	recursiveEnc, hasSeen := seen[rt]
@@ -100,9 +103,18 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 				}
 			}
 
+			var ptr unsafe.Pointer
 			if field.ptr {
 				if v.IsNil() {
 					continue
+				}
+
+				if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
+					ptr = v.UnsafePointer()
+					if _, ok := ctx.ptrSeen[ptr]; ok {
+						return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
+					}
+					ctx.ptrSeen[ptr] = empty{}
 				}
 
 				v = v.Elem()
@@ -112,6 +124,13 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 			b, err = field.encode(ctx, b, v)
 			if err != nil {
 				return b, err
+			}
+
+			if field.ptr {
+				ctx.ptrLevel--
+				if ptr != zeroPtr {
+					delete(ctx.ptrSeen, ptr)
+				}
 			}
 		}
 
@@ -207,6 +226,13 @@ func compileIsZero(rt reflect.Type) func(rv reflect.Value) bool {
 	if rt.Implements(isZeroValueType) {
 		return func(rv reflect.Value) bool {
 			return rv.Interface().(IsZeroValue).IsZeroBencodeValue()
+		}
+	}
+
+	switch rt.Kind() {
+	case reflect.Slice, reflect.Map:
+		return func(rv reflect.Value) bool {
+			return rv.Len() == 0
 		}
 	}
 

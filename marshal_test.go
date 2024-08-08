@@ -913,26 +913,45 @@ func equalMarshaled(t *testing.T, a string, v any) {
 	test.StringEqual(t, a, actual)
 }
 
-func TestRecursivePanic(t *testing.T) {
-	type O struct {
-		Name string
-		E    []O
-	}
+type RecursiveA struct {
+	Value *RecursiveB
+}
+type RecursiveB struct {
+	Value *RecursiveA
+}
 
-	actual, err := bencode.Marshal(O{
-		Name: "hello",
-		E: []O{
-			{
-				Name: "BB",
-				E: []O{
-					{Name: "C C D D E E F F"},
+func TestRecursive(t *testing.T) {
+	t.Run("no-ref", func(t *testing.T) {
+		type O struct {
+			Name string
+			E    []O
+		}
+
+		actual, err := bencode.Marshal(O{
+			Name: "hello",
+			E: []O{
+				{
+					Name: "BB",
+					E: []O{
+						{Name: "C C D D E E F F"},
+					},
 				},
 			},
-		},
+		})
+		require.NoError(t, err)
+		expected := `d1:Eld1:Eld1:Ele4:Name15:C C D D E E F Fee4:Name2:BBee4:Name5:helloe`
+		test.StringEqual(t, expected, actual)
 	})
-	require.NoError(t, err)
-	expected := `d1:Eld1:Eld1:Ele4:Name15:C C D D E E F Fee4:Name2:BBee4:Name5:helloe`
-	test.StringEqual(t, expected, actual)
+
+	t.Run("no-ref", func(t *testing.T) {
+		var a RecursiveA
+		var b RecursiveB
+		a.Value = &b
+		b.Value = &a
+
+		_, err := bencode.Marshal(a)
+		require.Error(t, err)
+	})
 }
 
 type userMarshaler struct {
