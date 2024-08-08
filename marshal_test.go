@@ -273,7 +273,7 @@ func TestMarshal_concrete_types(t *testing.T) {
 			actual, err := bencode.Marshal(d.Data)
 			require.NoError(t, err)
 
-			test.StringEqual(t, data.Expected, string(actual))
+			test.StringEqual(t, data.Expected, actual)
 		})
 	}
 }
@@ -285,7 +285,7 @@ func TestMarshal_interface(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 
-			test.StringEqual(t, data.WrappedExpected(), string(actual))
+			test.StringEqual(t, data.WrappedExpected(), actual)
 		})
 	}
 }
@@ -297,7 +297,7 @@ func TestMarshal_interface_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(&data.Data)
 			require.NoError(t, err)
 
-			test.StringEqual(t, data.Expected, string(actual))
+			test.StringEqual(t, data.Expected, actual)
 		})
 	}
 }
@@ -314,7 +314,7 @@ func TestMarshal_ptr(t *testing.T) {
 		actual, err := bencode.Marshal(Indirect{B: &i})
 		require.NoError(t, err)
 		expected := `d1:bi50ee`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 
 	t.Run("int-indirect-omitempty", func(t *testing.T) {
@@ -328,7 +328,7 @@ func TestMarshal_ptr(t *testing.T) {
 		actual, err := bencode.Marshal(Indirect{A: &i})
 		require.NoError(t, err)
 		expected := `d1:ai50ee`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 
 	t.Run("int-direct", func(t *testing.T) {
@@ -342,7 +342,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(Direct{Value: &i})
 			require.NoError(t, err)
 			expected := `d5:valuei50ee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 	})
 
@@ -355,7 +355,7 @@ func TestMarshal_ptr(t *testing.T) {
 		actual, err := bencode.Marshal(data)
 		require.NoError(t, err)
 		expected := `de`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 
 	t.Run("*string", func(t *testing.T) {
@@ -368,7 +368,7 @@ func TestMarshal_ptr(t *testing.T) {
 		actual, err := bencode.Marshal(data)
 		require.NoError(t, err)
 		expected := `d5:value7:abcdefge`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 
 	t.Run("multiple ptr", func(t *testing.T) {
@@ -383,7 +383,7 @@ func TestMarshal_ptr(t *testing.T) {
 		actual, err := bencode.Marshal(&data)
 		require.NoError(t, err)
 		expected := `d5:value7:abcdefge`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 
 	t.Run("struct", func(t *testing.T) {
@@ -397,7 +397,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(&data)
 			require.NoError(t, err)
 			expected := `d2:idi0e5:valuei0ee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("*struct-nil", func(t *testing.T) {
@@ -410,7 +410,7 @@ func TestMarshal_ptr(t *testing.T) {
 			_, err := bencode.Marshal(data)
 			require.Error(t, err)
 			//expected := `N;`
-			//test.StringEqual(t, expected, string(actual))
+			//test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("indirect", func(t *testing.T) {
@@ -425,7 +425,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d1:bi20ee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		u := User{
@@ -442,7 +442,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `de`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("encode direct", func(t *testing.T) {
@@ -454,7 +454,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d5:valued2:idi4e4:name3:oneee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("encode indirect", func(t *testing.T) {
@@ -467,7 +467,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d5:valued2:idi4e4:name3:oneee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 	})
 
@@ -481,7 +481,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `de`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("nil-indirect", func(t *testing.T) {
@@ -496,7 +496,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d1:bi1ee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("omitempty", func(t *testing.T) {
@@ -509,7 +509,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d5:valueli1ei6ei4ei7ei9eee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("no omitempty", func(t *testing.T) {
@@ -522,7 +522,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d5:valueli1ei6ei4ei7ei9eee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 	})
 
@@ -538,7 +538,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d5:valuel1:a1:b1:c1:d1:e1:f1:gee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("no-omitempty", func(t *testing.T) {
@@ -552,7 +552,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d5:valuel1:a1:b1:c1:d1:e1:f1:gee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("nil", func(t *testing.T) {
@@ -565,7 +565,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `de`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 		t.Run("encode", func(t *testing.T) {
@@ -580,7 +580,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d5:valuel1:11:2ee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 	})
 
@@ -596,7 +596,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 			expected := `d5:value7:abcdefge`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 
 	})
@@ -612,7 +612,7 @@ func TestMarshal_ptr(t *testing.T) {
 				actual, err := bencode.Marshal(data)
 				require.NoError(t, err)
 				expected := `de`
-				test.StringEqual(t, expected, string(actual))
+				test.StringEqual(t, expected, actual)
 			})
 
 			t.Run("encode", func(t *testing.T) {
@@ -621,7 +621,7 @@ func TestMarshal_ptr(t *testing.T) {
 				actual, err := bencode.Marshal(&s)
 				require.NoError(t, err)
 				expected := `d1:bi2ee`
-				test.StringEqual(t, expected, string(actual))
+				test.StringEqual(t, expected, actual)
 			})
 
 			t.Run("omitempty encode", func(t *testing.T) {
@@ -635,7 +635,7 @@ func TestMarshal_ptr(t *testing.T) {
 				actual, err := bencode.Marshal(data)
 				require.NoError(t, err)
 				expected := `d5:valued1:1i2eee`
-				test.StringEqual(t, expected, string(actual))
+				test.StringEqual(t, expected, actual)
 			})
 
 			t.Run("omitempty nil", func(t *testing.T) {
@@ -647,7 +647,7 @@ func TestMarshal_ptr(t *testing.T) {
 				actual, err := bencode.Marshal(data)
 				require.NoError(t, err)
 				expected := `de`
-				test.StringEqual(t, expected, string(actual))
+				test.StringEqual(t, expected, actual)
 			})
 		})
 
@@ -662,7 +662,7 @@ func TestMarshal_ptr(t *testing.T) {
 				actual, err := bencode.Marshal(data)
 				require.NoError(t, err)
 				expected := `de`
-				test.StringEqual(t, expected, string(actual))
+				test.StringEqual(t, expected, actual)
 			})
 
 			t.Run("encode", func(t *testing.T) {
@@ -671,7 +671,7 @@ func TestMarshal_ptr(t *testing.T) {
 				actual, err := bencode.Marshal(&s)
 				require.NoError(t, err)
 				expected := `d1:qi2ee`
-				test.StringEqual(t, expected, string(actual))
+				test.StringEqual(t, expected, actual)
 			})
 
 			t.Run("omitempty", func(t *testing.T) {
@@ -686,7 +686,7 @@ func TestMarshal_ptr(t *testing.T) {
 				actual, err := bencode.Marshal(data)
 				require.NoError(t, err)
 				expected := `d5:valued1:ai2eee`
-				test.StringEqual(t, expected, string(actual))
+				test.StringEqual(t, expected, actual)
 			})
 		})
 	})
@@ -709,7 +709,7 @@ func TestMarshal_ptr(t *testing.T) {
 			actual, err := bencode.Marshal(&s)
 			require.NoError(t, err)
 			expected := `d1:xi2ee`
-			test.StringEqual(t, expected, string(actual))
+			test.StringEqual(t, expected, actual)
 		})
 	})
 
@@ -723,7 +723,7 @@ func TestMarshal_ptr(t *testing.T) {
 		actual, err := bencode.Marshal(data)
 		require.NoError(t, err)
 		expected := `d5:valuei644ee`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 
 	t.Run("nested", func(t *testing.T) {
@@ -751,7 +751,7 @@ func TestMarshal_ptr(t *testing.T) {
 		expected := `d5:valuei8ee`
 		actual, err := bencode.Marshal(Container{Value: &a})
 		require.NoError(t, err)
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 }
 
@@ -764,7 +764,7 @@ func TestMarshal_map(t *testing.T) {
 		actual, err := bencode.Marshal(MapOnly{Map: nil})
 		require.NoError(t, err)
 		expected := `d3:mapdee`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 
 	t.Run("direct", func(t *testing.T) {
@@ -775,7 +775,7 @@ func TestMarshal_map(t *testing.T) {
 		actual, err := bencode.Marshal(MapOnly{Map: map[string]int64{"abcdef": 1}})
 		require.NoError(t, err)
 		expected := `d3:mapd6:abcdefi1eee`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 
 	t.Run("indirect", func(t *testing.T) {
@@ -788,7 +788,7 @@ func TestMarshal_map(t *testing.T) {
 		actual, err := bencode.Marshal(MapPtr{Map: map[string]int64{"abcdef": 1}})
 		require.NoError(t, err)
 		expected := `d3:mapd6:abcdefi1ee5:userslee`
-		test.StringEqual(t, expected, string(actual))
+		test.StringEqual(t, expected, actual)
 	})
 }
 
@@ -808,7 +808,7 @@ func TestMarshal_interface_with_method(t *testing.T) {
 	actual, err := bencode.Marshal(Container{Value: data})
 	require.NoError(t, err)
 	expected := `d5:valuedee`
-	test.StringEqual(t, expected, string(actual))
+	test.StringEqual(t, expected, actual)
 }
 
 func TestMarshal_anonymous_field(t *testing.T) {
@@ -828,7 +828,7 @@ func TestMarshal_anonymous_field(t *testing.T) {
 			B: 2,
 		}, C: 1})
 		require.NoError(t, err)
-		test.StringEqual(t, "d1:Ai3e1:Bi2e1:Ci1ee", string(actual))
+		test.StringEqual(t, "d1:Ai3e1:Bi2e1:Ci1ee", actual)
 	})
 
 	t.Run("named", func(t *testing.T) {
@@ -847,7 +847,7 @@ func TestMarshal_anonymous_field(t *testing.T) {
 			B: 2,
 		}, C: 1})
 		require.NoError(t, err)
-		test.StringEqual(t, "d1:Ci1e1:nd1:Ai3e1:Bi2eee", string(actual))
+		test.StringEqual(t, "d1:Ci1e1:nd1:Ai3e1:Bi2eee", actual)
 	})
 
 	t.Run("duplicated-name", func(t *testing.T) {
@@ -910,7 +910,7 @@ func equalMarshaled(t *testing.T, a string, v any) {
 	actual, err := bencode.Marshal(v)
 	require.NoError(t, err)
 
-	test.StringEqual(t, a, string(actual))
+	test.StringEqual(t, a, actual)
 }
 
 func TestRecursivePanic(t *testing.T) {
@@ -932,7 +932,7 @@ func TestRecursivePanic(t *testing.T) {
 	})
 	require.NoError(t, err)
 	expected := `d1:Eld1:Eld1:Ele4:Name15:C C D D E E F Fee4:Name2:BBee4:Name5:helloe`
-	test.StringEqual(t, expected, string(actual))
+	test.StringEqual(t, expected, actual)
 }
 
 type userMarshaler struct {
@@ -970,7 +970,7 @@ func TestUserMarshaler(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	test.StringEqual(t, `d1:T25:2024-07-16T01:02:03+08:00e`, string(actual))
+	test.StringEqual(t, `d1:T25:2024-07-16T01:02:03+08:00e`, actual)
 }
 
 type Generic[T any] struct {
@@ -1021,7 +1021,7 @@ func TestMarshal_go118_concrete_types(t *testing.T) {
 			actual, err := bencode.Marshal(data.Data)
 			require.NoError(t, err)
 
-			test.StringEqual(t, data.Expected, string(actual))
+			test.StringEqual(t, data.Expected, actual)
 		})
 	}
 }
@@ -1034,7 +1034,7 @@ func TestMarshal_go118_interface(t *testing.T) {
 			actual, err := bencode.Marshal(data)
 			require.NoError(t, err)
 
-			test.StringEqual(t, data.WrappedExpected(), string(actual))
+			test.StringEqual(t, data.WrappedExpected(), actual)
 		})
 	}
 }
@@ -1053,7 +1053,7 @@ func TestMarshal_array_map(t *testing.T) {
 	actual, err := bencode.Marshal(data)
 	require.NoError(t, err)
 	expected := `ld2:-3i1eeded2:-1i1eededee`
-	test.StringEqual(t, expected, string(actual))
+	test.StringEqual(t, expected, actual)
 }
 
 func TestMarshal_Array_nil(t *testing.T) {
@@ -1062,7 +1062,7 @@ func TestMarshal_Array_nil(t *testing.T) {
 	actual, err := bencode.Marshal(data)
 	require.NoError(t, err)
 	expected := `li0ei0ei0ei0ei0ee`
-	test.StringEqual(t, expected, string(actual))
+	test.StringEqual(t, expected, actual)
 }
 
 type zeroValuerImpl struct {
@@ -1091,7 +1091,7 @@ func TestMarshal_marshaler_zero(t *testing.T) {
 
 	actual, err := bencode.Marshal(s)
 	require.NoError(t, err)
-	test.StringEqual(t, `d1:z5:valuee`, string(actual))
+	test.StringEqual(t, `d1:z5:valuee`, actual)
 
 	var s2 = structWithZero{
 		Z: zeroValuerImpl{zero: true},
@@ -1099,7 +1099,7 @@ func TestMarshal_marshaler_zero(t *testing.T) {
 
 	actual, err = bencode.Marshal(s2)
 	require.NoError(t, err)
-	test.StringEqual(t, `de`, string(actual))
+	test.StringEqual(t, `de`, actual)
 }
 
 func TestMarshal_byteArray(t *testing.T) {
@@ -1110,7 +1110,7 @@ func TestMarshal_byteArray(t *testing.T) {
 
 		actual, err := bencode.Marshal(s)
 		require.NoError(t, err)
-		test.StringEqual(t, "d5:Value20:\x00\x01\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00e", string(actual))
+		test.StringEqual(t, "d5:Value20:\x00\x01\x02\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00e", actual)
 	}
 
 	{
@@ -1118,7 +1118,7 @@ func TestMarshal_byteArray(t *testing.T) {
 
 		actual, err := bencode.Marshal(v)
 		require.NoError(t, err)
-		test.StringEqual(t, "20:\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", string(actual))
+		test.StringEqual(t, "20:\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", actual)
 	}
 }
 

@@ -18,5 +18,5 @@ func TestMarshalBytes(t *testing.T) {
 
 	actual, err := bencode.Marshal(S)
 	require.NoError(t, err)
-	test.StringEqual(t, "d1:vi1ee", string(actual))
+	test.StringEqual(t, "d1:vi1ee", actual)
 }

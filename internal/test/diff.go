@@ -50,10 +50,15 @@ func diffsToString(diffs []diffmatchpatch.Diff) string {
 	return buff.String()
 }
 
-func StringEqual(t *testing.T, expected, actual string) {
+type stringLike interface {
+	~string | ~[]byte
+}
+
+func StringEqual[A stringLike, B stringLike](t *testing.T, expected A, actual B) {
 	t.Helper()
-	if actual != expected {
-		t.Errorf("Result not as expected:\n%v", characterDiff(strconv.QuoteToASCII(expected), strconv.QuoteToASCII(actual)))
+
+	if string(expected) != string(actual) {
+		t.Errorf("Result not as expected:\n%v", characterDiff(strconv.QuoteToASCII(string(expected)), strconv.QuoteToASCII(string(actual))))
 		t.FailNow()
 	}
 }
