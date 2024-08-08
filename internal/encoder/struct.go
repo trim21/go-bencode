@@ -14,7 +14,6 @@ type structEncoder struct {
 
 	// a direct value handler, like `encodeInt`
 	// struct encoder should de-ref pointers and pass real address to encoder.
-	// address of map, slice, array may still be 0, bug theirs encoder will handle that at null.
 	encode    encoder
 	fieldName string // field fieldName
 	omitEmpty bool
