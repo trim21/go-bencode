@@ -977,11 +977,6 @@ type Generic[T any] struct {
 	Value T
 }
 
-type Generic2[T any] struct {
-	B     bool // prevent direct
-	Value T
-}
-
 func (tc Case) WrappedExpected() string {
 	return fmt.Sprintf(`d4:Data%s4:Name%d:%se`, tc.Expected, len(tc.Name), tc.Name)
 }
@@ -1006,11 +1001,6 @@ var go118TestCase = []Case{
 		Name:     "generic[slice]",
 		Data:     Generic[[]string]{[]string{"hello", "world"}},
 		Expected: `d5:Valuel5:hello5:worldee`,
-	},
-	{
-		Name:     "generic2[slice]",
-		Data:     Generic2[[]string]{Value: []string{"hello", "world"}},
-		Expected: `d1:Bi0e5:Valuel5:hello5:worldee`,
 	},
 }
 

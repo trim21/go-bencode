@@ -8,20 +8,13 @@ import (
 
 type encoder func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error)
 
-var (
-	cachedEncoderMap atomic.Pointer[map[reflect.Type]encoder]
-)
+var cachedEncoderMap atomic.Pointer[map[reflect.Type]encoder]
 
 func init() {
-	var m = map[reflect.Type]encoder{}
-	cachedEncoderMap.Store(&m)
+	cachedEncoderMap.Store(&map[reflect.Type]encoder{})
 }
 
 func compileWithCache(rt reflect.Type) (encoder, error) {
-	return compileToGetEncoderSlowPath(rt)
-}
-
-func compileToGetEncoderSlowPath(rt reflect.Type) (encoder, error) {
 	opcodeMap := *cachedEncoderMap.Load()
 	if codeSet, exists := opcodeMap[rt]; exists {
 		return codeSet, nil
