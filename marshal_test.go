@@ -1172,3 +1172,14 @@ func BenchmarkMarshal(b *testing.B) {
 		}
 	}
 }
+
+func TestMarshal_nestedPtr(t *testing.T) {
+	type T *int
+	type Data struct {
+		Field *T
+	}
+
+	var data Data
+	_, err := bencode.Marshal(data)
+	require.Error(t, err)
+}

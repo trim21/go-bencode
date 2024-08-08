@@ -105,12 +105,7 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 					continue
 				}
 
-				b = AppendStr(b, field.fieldName)
-				b, err = field.encode(ctx, b, v.Elem())
-				if err != nil {
-					return b, err
-				}
-				continue
+				v = v.Elem()
 			}
 
 			b = AppendStr(b, field.fieldName)
@@ -176,7 +171,7 @@ func compileStructFieldsEncoder(ft reflect.StructField, fieldIndex []int, index 
 	var isPtrField = rt.Kind() == reflect.Ptr
 	if isPtrField {
 		if rt.Elem().Kind() == reflect.Ptr {
-			return nil, fmt.Errorf("encoding nested ptr is not supported %s", rt.String())
+			return nil, fmt.Errorf("bencode: nested ptr is not supported %s", rt.String())
 		}
 	}
 

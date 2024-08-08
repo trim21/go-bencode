@@ -627,6 +627,16 @@ func TestUnmarshal_null_array_2(t *testing.T) {
 	})
 }
 
+func TestUnmarshal_nestedPtr(t *testing.T) {
+	type T *int
+	type Data struct {
+		Field *T
+	}
+
+	var data Data
+	require.Error(t, bencode.Unmarshal([]byte("de"), &data))
+}
+
 func TestUnmarshal_arrayBytes(t *testing.T) {
 	var data [20]byte
 
