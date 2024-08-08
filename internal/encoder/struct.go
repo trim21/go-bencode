@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-	"unsafe"
 
 	"github.com/trim21/go-bencode/internal/runtime"
 )
@@ -111,14 +110,13 @@ func encodeStructField(ctx *Context, b []byte, rv reflect.Value, field structEnc
 		}
 	}
 
-	var ptr unsafe.Pointer
 	if field.ptr {
 		if v.IsNil() {
 			return b, nil
 		}
 
 		if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
-			ptr = v.UnsafePointer()
+			ptr := v.UnsafePointer()
 			if _, ok := ctx.ptrSeen[ptr]; ok {
 				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
 			}
@@ -131,15 +129,12 @@ func encodeStructField(ctx *Context, b []byte, rv reflect.Value, field structEnc
 
 	b = AppendStr(b, field.fieldName)
 	b, err = field.encode(ctx, b, v)
-	if err != nil {
-		return b, err
-	}
 
 	if field.ptr {
 		ctx.ptrLevel--
 	}
 
-	return b, nil
+	return b, err
 }
 
 func compileStructFieldsEncoders(rt reflect.Type, seen seenMap) ([]structEncoder, error) {
