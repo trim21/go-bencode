@@ -127,14 +127,12 @@ func (b *bigIntDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 
 	cursor = c
 
-	v := rv.Interface().(big.Int)
+	v := rv.Addr().Interface().(*big.Int)
 
 	_, ok := v.SetString(string(buf), 10)
 	if !ok {
 		return 0, errors.ErrSyntax("bencode: invalid int", cursor)
 	}
-
-	rv.Set(reflect.ValueOf(v))
 
 	return c, nil
 }
