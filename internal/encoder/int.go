@@ -33,7 +33,7 @@ func encodeBigIntPtr(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 	v := rv.Interface().(*big.Int)
 
 	if v == nil {
-		return AppendInt(b, 0), nil
+		return append(b, "i0e"...), nil
 	}
 
 	b = append(b, 'i')

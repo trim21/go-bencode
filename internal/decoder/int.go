@@ -117,24 +117,11 @@ var typeBigInt = reflect.TypeFor[big.Int]()
 var typeBigIntPtr = reflect.TypeFor[*big.Int]()
 
 type bigIntDecoder struct {
+	ptrDecoder bigIntPtrDecoder
 }
 
 func (b *bigIntDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
-	buf, c, err := decodeIntegerBytes(ctx.Buf, cursor)
-	if err != nil {
-		return 0, err
-	}
-
-	cursor = c
-
-	v := rv.Addr().Interface().(*big.Int)
-
-	_, ok := v.SetString(string(buf), 10)
-	if !ok {
-		return 0, errors.ErrSyntax("bencode: invalid int", cursor)
-	}
-
-	return c, nil
+	return b.ptrDecoder.Decode(ctx, cursor, depth, rv.Addr())
 }
 
 type bigIntPtrDecoder struct {
