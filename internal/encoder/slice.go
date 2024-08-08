@@ -36,3 +36,7 @@ func compileSlice(rt reflect.Type, seen seenMap) (encoder, error) {
 		return append(b, 'e'), nil
 	}, nil
 }
+
+func appendEmptyList(b []byte) []byte {
+	return append(b, "le"...)
+}

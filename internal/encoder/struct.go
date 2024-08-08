@@ -76,6 +76,12 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 		fieldNames[field.fieldName] = true
 	}
 
+	if len(fields) == 0 {
+		return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
+			return appendEmptyMap(b), nil
+		}, nil
+	}
+
 	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 		// shadow compiler's error
 		var err error
