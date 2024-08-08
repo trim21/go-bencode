@@ -33,8 +33,6 @@ func (s *structRecEncoder) Encode(ctx *Context, b []byte, rv reflect.Value) ([]b
 	return s.enc(ctx, b, rv)
 }
 
-var zeroPtr unsafe.Pointer
-
 func compileStruct(rt reflect.Type, seen seenMap) (encoder, error) {
 	recursiveEnc, hasSeen := seen[rt]
 
