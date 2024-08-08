@@ -10,22 +10,6 @@ func compilePtr(rt reflect.Type, seen seenMap) (encoder, error) {
 	switch rt.Elem().Kind() {
 	case reflect.Ptr:
 		return nil, fmt.Errorf("bencode: encoding nested ptr is not supported *%s", rt.Elem().String())
-	case reflect.Bool:
-		return deRefNilEncoder(encodeBool), nil
-	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint:
-		return deRefNilEncoder(encodeUint), nil
-	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-		return deRefNilEncoder(encodeInt), nil
-	case reflect.String:
-		return deRefNilEncoder(encodeString), nil
-	case reflect.Interface:
-		return compileInterface(rt.Elem())
-	case reflect.Map:
-		enc, err := compileMap(rt.Elem(), seen)
-		return deRefNilEncoder(enc), err
-	case reflect.Struct:
-		enc, err := compileStruct(rt.Elem(), seen)
-		return deRefNilEncoder(enc), err
 	}
 
 	enc, err := compile(rt.Elem(), seen)
@@ -36,10 +20,12 @@ func compilePtr(rt reflect.Type, seen seenMap) (encoder, error) {
 	return deRefNilEncoder(enc), nil
 }
 
+var ErrNilPtr = errors.New("bencode: bencode doesn't have a nil type, nil ptr can't be encoded")
+
 func deRefNilEncoder(enc encoder) encoder {
 	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
 		if rv.IsNil() {
-			return b, errors.New("can't encode nil ptr")
+			return b, ErrNilPtr
 		}
 
 		return enc(ctx, b, rv.Elem())

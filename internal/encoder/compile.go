@@ -73,7 +73,7 @@ func compile(rt reflect.Type, seen seenMap) (encoder, error) {
 		return compileInterface(rt)
 	case reflect.Ptr:
 		return compilePtr(rt, seen)
+	default:
+		return nil, fmt.Errorf("failed to build encoder, unsupported type %s (kind %s)", rt.String(), rt.Kind())
 	}
-
-	return nil, fmt.Errorf("failed to build encoder, unsupported type %s (kind %s)", rt.String(), rt.Kind())
 }
