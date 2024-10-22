@@ -14,10 +14,6 @@ If you have any thought about how to support these types, please create an issue
 
 Or you can wrap these types and implement `bencode.Marshaler` or `bencode.Unmarshaler`
 
-## Supported and tested go version
-
-- 1.22
-
 ## Install
 
 ```console
