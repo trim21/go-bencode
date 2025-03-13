@@ -1,6 +1,6 @@
 module github.com/trim21/go-bencode
 
-go 1.22
+go 1.22.12
 
 require (
 	github.com/fatih/color v1.18.0
