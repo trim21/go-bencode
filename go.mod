@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/fatih/color v1.18.0
 	github.com/sergi/go-diff v1.4.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 )
 
 require (
