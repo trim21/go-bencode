@@ -2,10 +2,13 @@ package encoder
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
 )
+
+const startDetectingCyclesAfter = 1000
 
 // !!! not safe to use in reflect case !!!
 func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
@@ -14,7 +17,7 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 	valueType := rt.Elem()
 
 	var keyEncoder encoder
-	var err error
+	var ce error
 
 	var keyCompare func(reflect.Value, reflect.Value) int
 
@@ -23,19 +26,19 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 		keyEncoder = encodeString
 		keyCompare = stringKeyCompare
 	case keyType.Kind() == reflect.Array && keyType.Elem().Kind() == reflect.Uint8:
-		keyEncoder, err = compileBytesArray(keyType)
+		keyEncoder, ce = compileBytesArray(keyType)
 		keyCompare = arrayByteKeyCompare
 	default:
 		return nil, &UnsupportedTypeAsMapKeyError{Type: keyType}
 	}
 
-	if err != nil {
-		return nil, err
+	if ce != nil {
+		return nil, ce
 	}
 
-	valueEncoder, err := compile(valueType, seen)
-	if err != nil {
-		return nil, err
+	valueEncoder, ce := compile(valueType, seen)
+	if ce != nil {
+		return nil, ce
 	}
 
 	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
@@ -46,6 +49,15 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 		size := rv.Len()
 		if size == 0 {
 			return appendEmptyMap(b), nil
+		}
+
+		if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
+			ptr := rv.UnsafePointer()
+			if _, ok := ctx.ptrSeen[ptr]; ok {
+				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
+			}
+			ctx.ptrSeen[ptr] = empty{}
+			defer delete(ctx.ptrSeen, ptr)
 		}
 
 		b = append(b, 'd')
@@ -65,6 +77,8 @@ func compileMap(rt reflect.Type, seen seenMap) (encoder, error) {
 				return b, err
 			}
 		}
+
+		ctx.ptrLevel--
 
 		return append(b, 'e'), nil
 	}, nil

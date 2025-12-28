@@ -58,9 +58,9 @@ func compileStruct(rt reflect.Type, seen seenMap) (encoder, error) {
 
 // struct don't have `omitempty` tag, fast path
 func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
-	fields, err := compileStructFieldsEncoders(rt, seen)
-	if err != nil {
-		return nil, err
+	fields, ce := compileStructFieldsEncoders(rt, seen)
+	if ce != nil {
+		return nil, ce
 	}
 
 	slices.SortFunc(fields, func(a, b structEncoder) int {
@@ -83,33 +83,11 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 	}
 
 	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
-		// shadow compiler's error
-		var err error
-
 		b = append(b, 'd')
 
+		var err error
 		for _, field := range fields {
-			v := rv
-			for _, index := range field.fieldIndex {
-				v = v.Field(index)
-			}
-
-			if field.omitEmpty {
-				if field.isZero(v) {
-					continue
-				}
-			}
-
-			if field.ptr {
-				if v.IsNil() {
-					continue
-				}
-
-				v = v.Elem()
-			}
-
-			b = AppendStr(b, field.fieldName)
-			b, err = field.encode(ctx, b, v)
+			b, err = encodeStructField(ctx, b, rv, field)
 			if err != nil {
 				return b, err
 			}
@@ -117,6 +95,46 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 
 		return append(b, 'e'), nil
 	}, nil
+}
+
+func encodeStructField(ctx *Context, b []byte, rv reflect.Value, field structEncoder) ([]byte, error) {
+	var err error
+	v := rv
+	for _, index := range field.fieldIndex {
+		v = v.Field(index)
+	}
+
+	if field.omitEmpty {
+		if field.isZero(v) {
+			return b, nil
+		}
+	}
+
+	if field.ptr {
+		if v.IsNil() {
+			return b, nil
+		}
+
+		if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
+			ptr := v.UnsafePointer()
+			if _, ok := ctx.ptrSeen[ptr]; ok {
+				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
+			}
+			ctx.ptrSeen[ptr] = empty{}
+			defer delete(ctx.ptrSeen, ptr)
+		}
+
+		v = v.Elem()
+	}
+
+	b = AppendStr(b, field.fieldName)
+	b, err = field.encode(ctx, b, v)
+
+	if field.ptr {
+		ctx.ptrLevel--
+	}
+
+	return b, err
 }
 
 func compileStructFieldsEncoders(rt reflect.Type, seen seenMap) ([]structEncoder, error) {
@@ -207,6 +225,13 @@ func compileIsZero(rt reflect.Type) func(rv reflect.Value) bool {
 	if rt.Implements(isZeroValueType) {
 		return func(rv reflect.Value) bool {
 			return rv.Interface().(IsZeroValue).IsZeroBencodeValue()
+		}
+	}
+
+	switch rt.Kind() {
+	case reflect.Slice, reflect.Map:
+		return func(rv reflect.Value) bool {
+			return rv.Len() == 0
 		}
 	}
 

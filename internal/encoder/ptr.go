@@ -28,6 +28,20 @@ func deRefNilEncoder(enc encoder) encoder {
 			return b, ErrNilPtr
 		}
 
-		return enc(ctx, b, rv.Elem())
+		if ctx.ptrLevel++; ctx.ptrLevel > startDetectingCyclesAfter {
+			ptr := rv.UnsafePointer()
+			if _, ok := ctx.ptrSeen[ptr]; ok {
+				return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
+			}
+			ctx.ptrSeen[ptr] = empty{}
+			defer delete(ctx.ptrSeen, ptr)
+		}
+
+		var err error
+		b, err = enc(ctx, b, rv.Elem())
+
+		ctx.ptrLevel--
+
+		return b, err
 	}
 }
