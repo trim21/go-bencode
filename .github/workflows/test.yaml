@@ -44,3 +44,10 @@ jobs:
         with:
           files: coverage.out
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-pass:
+    needs:
+      - test
+    runs-on: ubuntu-slim
+    steps:
+      - run: echo success
