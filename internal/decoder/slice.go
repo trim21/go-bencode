@@ -54,17 +54,13 @@ func (d *sliceDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.
 		}
 
 		if buf[cursor] == 'e' {
-			if index == sCap-1 { // slice is expensive
-				rv.Set(s)
-			} else {
-				rv.Set(s.Slice(0, index))
-			}
+			s.SetLen(index)
+			rv.Set(s)
 			return cursor + 1, nil
 		}
 
 		if index == sCap {
 			s.Grow(sCap)
-			s.Slice(0, sCap)
 			sCap = sCap * 2
 			s.SetLen(sCap)
 		}
