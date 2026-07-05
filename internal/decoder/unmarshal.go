@@ -8,6 +8,17 @@ import (
 )
 
 func Unmarshal(data []byte, v any) error {
+	return unmarshal(data, v, false)
+}
+
+// UnmarshalRelaxed is like Unmarshal but with relaxed parsing rules:
+// - Dictionary keys are not required to be sorted
+// - Duplicate dictionary keys are allowed (last value wins)
+func UnmarshalRelaxed(data []byte, v any) error {
+	return unmarshal(data, v, true)
+}
+
+func unmarshal(data []byte, v any, relaxed bool) error {
 	rv := reflect.ValueOf(v)
 
 	rt := rv.Type()
@@ -22,6 +33,7 @@ func Unmarshal(data []byte, v any) error {
 	}
 	ctx := newCtx()
 	ctx.Buf = data
+	ctx.Relaxed = relaxed
 	cursor, err := dec.Decode(ctx, 0, 0, rv.Elem())
 	if err != nil {
 		freeCtx(ctx)

@@ -5,7 +5,8 @@ import (
 )
 
 type Context struct {
-	Buf []byte
+	Buf     []byte
+	Relaxed bool
 }
 
 var ctxPool = sync.Pool{
@@ -20,5 +21,6 @@ func newCtx() *Context {
 
 func freeCtx(ctx *Context) {
 	ctx.Buf = nil
+	ctx.Relaxed = false
 	ctxPool.Put(ctx)
 }

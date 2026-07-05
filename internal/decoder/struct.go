@@ -163,7 +163,7 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 			return 0, err
 		}
 
-		if lastKey != nil {
+		if lastKey != nil && !ctx.Relaxed {
 			switch bytes.Compare(lastKey, currentKey) {
 			case 0:
 				return cursor, fmt.Errorf("dictionary conrains duplicated keys %s. index %d", currentKey, cursor)
@@ -180,7 +180,7 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 		}
 
 		if field == nil {
-			cursor, err = skipValue(buf, cursor, depth)
+			cursor, err = skipValue(buf, cursor, depth, ctx.Relaxed)
 			if err != nil {
 				return 0, err
 			}

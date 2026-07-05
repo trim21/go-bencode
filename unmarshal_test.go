@@ -700,6 +700,131 @@ func (u *userType) UnmarshalBencode(bytes []byte) error {
 var _ bencode.Unmarshaler = (*userType)(nil)
 var _ bencode.Marshaler = userType{}
 
+func TestUnmarshalRelaxed(t *testing.T) {
+	t.Run("unordered dict keys - any", func(t *testing.T) {
+		// Keys not in sorted order: "min interval" > "complete" but appears first
+		raw := `d8:intervali3636e12:min intervali300e8:completei1e10:incompletei0e5:peerslee`
+
+		// Strict should fail
+		var v any
+		err := bencode.Unmarshal([]byte(raw), &v)
+		require.Error(t, err, "strict parsing should reject unordered keys")
+
+		// Relaxed should succeed
+		var v2 any
+		err = bencode.UnmarshalRelaxed([]byte(raw), &v2)
+		require.NoError(t, err)
+		require.Equal(t, map[string]any{
+			"interval":     int64(3636),
+			"min interval": int64(300),
+			"complete":     int64(1),
+			"incomplete":   int64(0),
+			"peers":        []any{},
+		}, v2)
+	})
+
+	t.Run("unordered dict keys - map", func(t *testing.T) {
+		raw := `d1:bi2e1:ai1ee`
+
+		var m map[string]int64
+		err := bencode.Unmarshal([]byte(raw), &m)
+		require.Error(t, err, "strict parsing should reject unordered keys")
+
+		err = bencode.UnmarshalRelaxed([]byte(raw), &m)
+		require.NoError(t, err)
+		require.Equal(t, map[string]int64{"a": 1, "b": 2}, m)
+	})
+
+	t.Run("unordered dict keys - struct", func(t *testing.T) {
+		raw := `d1:bi2e1:ai1ee`
+
+		var v struct {
+			A int64 `bencode:"a"`
+			B int64 `bencode:"b"`
+		}
+		err := bencode.Unmarshal([]byte(raw), &v)
+		require.Error(t, err, "strict parsing should reject unordered keys")
+
+		err = bencode.UnmarshalRelaxed([]byte(raw), &v)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), v.A)
+		require.Equal(t, int64(2), v.B)
+	})
+
+	t.Run("duplicate dict keys", func(t *testing.T) {
+		raw := `d1:ai1e1:ai2ee`
+
+		var m map[string]int64
+		err := bencode.Unmarshal([]byte(raw), &m)
+		require.Error(t, err, "strict parsing should reject duplicate keys")
+
+		err = bencode.UnmarshalRelaxed([]byte(raw), &m)
+		require.NoError(t, err)
+		require.Equal(t, map[string]int64{"a": 2}, m, "last value wins")
+	})
+
+	t.Run("duplicate dict keys - any", func(t *testing.T) {
+		raw := `d1:ai1e1:ai2ee`
+
+		var v any
+		err := bencode.Unmarshal([]byte(raw), &v)
+		require.Error(t, err, "strict parsing should reject duplicate keys")
+
+		err = bencode.UnmarshalRelaxed([]byte(raw), &v)
+		require.NoError(t, err)
+		require.Equal(t, map[string]any{"a": int64(2)}, v, "last value wins")
+	})
+
+	t.Run("duplicate dict keys - struct", func(t *testing.T) {
+		raw := `d1:ai1e1:ai2ee`
+
+		var v struct {
+			A int64 `bencode:"a"`
+		}
+		err := bencode.Unmarshal([]byte(raw), &v)
+		require.Error(t, err, "strict parsing should reject duplicate keys")
+
+		err = bencode.UnmarshalRelaxed([]byte(raw), &v)
+		require.NoError(t, err)
+		require.Equal(t, int64(2), v.A, "last value wins")
+	})
+
+	t.Run("trailing data", func(t *testing.T) {
+		raw := `i1ei2e`
+
+		var v int64
+		err := bencode.Unmarshal([]byte(raw), &v)
+		require.Error(t, err, "strict parsing should reject trailing data")
+
+		var v2 int64
+		err = bencode.UnmarshalRelaxed([]byte(raw), &v2)
+		require.Error(t, err, "relaxed parsing also rejects trailing data")
+	})
+
+	t.Run("skipped dict with unordered keys - strict fails", func(t *testing.T) {
+		// struct has field "d" but not "a", skipped dict under "a" has unordered keys
+		raw := `d1:ad1:ci1e1:bi2ee1:di3ee`
+
+		var v struct {
+			D int64 `bencode:"d"`
+		}
+		// strict should fail because skipped dict has unordered keys
+		err := bencode.Unmarshal([]byte(raw), &v)
+		require.Error(t, err)
+	})
+
+	t.Run("skipped dict with unordered keys - relaxed", func(t *testing.T) {
+		raw := `d1:ad1:ci1e1:bi2ee1:di3ee`
+
+		var v struct {
+			D int64 `bencode:"d"`
+		}
+		err := bencode.UnmarshalRelaxed([]byte(raw), &v)
+		require.NoError(t, err)
+		require.Equal(t, int64(3), v.D)
+	})
+}
+
 func BenchmarkUnmarshal(b *testing.B) {
 	type S struct {
 		Name   string

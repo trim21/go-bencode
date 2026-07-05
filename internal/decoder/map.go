@@ -94,7 +94,7 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 			return 0, err
 		}
 
-		if lastKey != nil {
+		if lastKey != nil && !ctx.Relaxed {
 			switch bytes.Compare(lastKey, currentKey) {
 			case 0:
 				return cursor, fmt.Errorf("dictionary conrains duplicated keys %s. index %d", currentKey, cursor)
