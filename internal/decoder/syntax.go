@@ -18,7 +18,7 @@ func skipInteger(buf []byte, cursor int) (int, error) {
 	return end, err
 }
 
-func skipList(buf []byte, cursor int, depth int64) (int, error) {
+func skipList(buf []byte, cursor int, depth int64, relaxed bool) (int, error) {
 	depth++
 	if depth > maxDecodeNestingDepth {
 		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
@@ -37,7 +37,7 @@ func skipList(buf []byte, cursor int, depth int64) (int, error) {
 			return cursor + 1, nil
 		}
 
-		c, err := skipValue(buf, cursor, depth)
+		c, err := skipValue(buf, cursor, depth, relaxed)
 		if err != nil {
 			return 0, err
 		}
@@ -46,7 +46,7 @@ func skipList(buf []byte, cursor int, depth int64) (int, error) {
 	}
 }
 
-func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
+func skipDictionary(buf []byte, cursor int, depth int64, relaxed bool) (int, error) {
 	depth++
 	if depth > maxDecodeNestingDepth {
 		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
@@ -80,7 +80,7 @@ func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 			return 0, err
 		}
 
-		if lastKey != nil {
+		if !relaxed && lastKey != nil {
 			switch bytes.Compare(lastKey, currentKey) {
 			case 0:
 				return cursor, fmt.Errorf("dictionary conrains duplicated keys %s. index %d", currentKey, cursor)
@@ -96,7 +96,7 @@ func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 			return 0, errors.ErrExpecting("object value after colon", buf, cursor)
 		}
 
-		c, err = skipValue(buf, cursor, depth)
+		c, err = skipValue(buf, cursor, depth, relaxed)
 		if err != nil {
 			return 0, err
 		}
@@ -105,12 +105,12 @@ func skipDictionary(buf []byte, cursor int, depth int64) (int, error) {
 }
 
 // skip value with index also check syntax
-func skipValue(buf []byte, cursor int, depth int64) (int, error) {
+func skipValue(buf []byte, cursor int, depth int64, relaxed bool) (int, error) {
 	switch buf[cursor] {
 	case 'l':
-		return skipList(buf, cursor, depth)
+		return skipList(buf, cursor, depth, relaxed)
 	case 'd':
-		return skipDictionary(buf, cursor, depth)
+		return skipDictionary(buf, cursor, depth, relaxed)
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		return skipString(buf, cursor)
 	case 'i':

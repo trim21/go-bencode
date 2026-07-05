@@ -142,7 +142,7 @@ func (d *interfaceDecoder) decodeDict(ctx *Context, cursor int) (map[string]any,
 			return nil, 0, err
 		}
 
-		if lastKey != nil {
+		if lastKey != nil && !ctx.Relaxed {
 			switch bytes.Compare(lastKey, rawKey) {
 			case 0:
 				return nil, cursor, fmt.Errorf("dictionary conrains duplicated keys %s. index %d", rawKey, cursor)

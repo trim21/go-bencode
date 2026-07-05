@@ -41,7 +41,7 @@ func (d *unmarshalerDecoder) annotateError(cursor int, err error) {
 func (d *unmarshalerDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	buf := ctx.Buf
 	start := cursor
-	end, err := skipValue(buf, cursor, depth)
+	end, err := skipValue(buf, cursor, depth, ctx.Relaxed)
 	if err != nil {
 		return 0, err
 	}

@@ -17,3 +17,14 @@ func Unmarshal(data []byte, v any) error {
 
 	return decoder.Unmarshal(data, v)
 }
+
+// UnmarshalRelaxed is like Unmarshal but with relaxed parsing rules:
+// - Dictionary keys are not required to be sorted
+// - Duplicate dictionary keys are allowed (last value wins)
+func UnmarshalRelaxed(data []byte, v any) error {
+	if len(data) == 0 {
+		return errors.New("empty data")
+	}
+
+	return decoder.UnmarshalRelaxed(data, v)
+}
