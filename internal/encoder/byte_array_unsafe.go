@@ -38,3 +38,12 @@ func unsafeBytesFromArray(rv reflect.Value) []byte {
 	ef := (*eface)(unsafe.Pointer(&v))
 	return unsafe.Slice((*byte)(ef.data), rv.Len())
 }
+
+// byteArrayToBytes returns a []byte view of a [N]byte array without copying.
+// Handles the unaddressable case (e.g. from MapKeys()) via unsafe.
+func byteArrayToBytes(rv reflect.Value) []byte {
+	if rv.CanAddr() {
+		return rv.Bytes()
+	}
+	return unsafeBytesFromArray(rv)
+}

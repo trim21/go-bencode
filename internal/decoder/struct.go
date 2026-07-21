@@ -37,8 +37,8 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 		}
 
 		if field.Anonymous {
-			if rt.Kind() != reflect.Struct {
-				return nil, fmt.Errorf("bencode: only support struct as Anonymous field, found: %s", rt.String())
+			if field.Type.Kind() != reflect.Struct {
+				return nil, fmt.Errorf("bencode: only support struct as Anonymous field, found: %s", field.Type.String())
 			}
 
 			if field.Tag.Get("bencode") == "" {

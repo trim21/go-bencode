@@ -1,6 +1,8 @@
 package bencode_test
 
 import (
+	"fmt"
+	"io"
 	"math/big"
 	"testing"
 	"time"
@@ -889,4 +891,651 @@ func BenchmarkUnmarshal(b *testing.B) {
 			}
 		}
 	})
+}
+
+func TestUnmarshalRelaxed_empty(t *testing.T) {
+	var v any
+	err := bencode.UnmarshalRelaxed([]byte(""), &v)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "empty data")
+
+	var s string
+	err = bencode.UnmarshalRelaxed([]byte(""), &s)
+	require.Error(t, err)
+
+	err = bencode.UnmarshalRelaxed(nil, &v)
+	require.Error(t, err)
+}
+
+// --- invalid type decoder (chan, func, float, complex) ---
+
+func TestUnmarshal_invalid_types(t *testing.T) {
+	t.Run("chan", func(t *testing.T) {
+		type S struct{ C chan int `bencode:"c"` }
+		var s S
+		err := bencode.Unmarshal([]byte("d1:ci1ee"), &s)
+		require.Error(t, err)
+	})
+
+	t.Run("func", func(t *testing.T) {
+		type S struct{ F func() `bencode:"f"` }
+		var s S
+		err := bencode.Unmarshal([]byte("d1:fi1ee"), &s)
+		require.Error(t, err)
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		type S struct{ F float64 `bencode:"f"` }
+		var s S
+		err := bencode.Unmarshal([]byte("d1:fi1ee"), &s)
+		require.Error(t, err)
+	})
+
+	t.Run("complex128", func(t *testing.T) {
+		type S struct{ C complex128 `bencode:"c"` }
+		var s S
+		err := bencode.Unmarshal([]byte("d1:ci1ee"), &s)
+		require.Error(t, err)
+	})
+
+	t.Run("non-empty interface", func(t *testing.T) {
+		var v io.Reader
+		err := bencode.Unmarshal([]byte("de"), &v)
+		require.Error(t, err)
+	})
+
+	t.Run("map with int key", func(t *testing.T) {
+		var m map[int]string
+		err := bencode.Unmarshal([]byte("de"), &m)
+		require.Error(t, err)
+	})
+}
+
+// --- unmarshaler returning error (annotateError path) ---
+
+type errUnmarshaler struct{}
+
+func (e *errUnmarshaler) UnmarshalBencode([]byte) error {
+	return fmt.Errorf("custom unmarshal error")
+}
+
+var _ bencode.Unmarshaler = (*errUnmarshaler)(nil)
+
+func TestUnmarshal_unmarshaler_error(t *testing.T) {
+	t.Run("direct", func(t *testing.T) {
+		var v errUnmarshaler
+		err := bencode.Unmarshal([]byte("4:test"), &v)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "custom unmarshal error")
+	})
+
+	t.Run("struct field", func(t *testing.T) {
+		type S struct {
+			E errUnmarshaler `bencode:"e"`
+		}
+		var s S
+		err := bencode.Unmarshal([]byte("d1:e4:teste"), &s)
+		require.Error(t, err)
+	})
+}
+
+// --- decodeAny default case (invalid first byte) ---
+
+func TestUnmarshal_decodeAny_invalid(t *testing.T) {
+	var v any
+	err := bencode.Unmarshal([]byte("e"), &v)
+	require.Error(t, err)
+
+	err = bencode.Unmarshal([]byte("x"), &v)
+	require.Error(t, err)
+}
+
+// --- array overflow (more items than array length) ---
+
+func TestUnmarshal_array_overflow(t *testing.T) {
+	type S struct {
+		Arr [2]int `bencode:"arr"`
+	}
+	var s S
+	err := bencode.Unmarshal([]byte("d3:arrli1ei2ei3eee"), &s)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "array overflow")
+}
+
+// --- slice grow (more than 8 elements) ---
+
+func TestUnmarshal_slice_grow(t *testing.T) {
+	var s []int
+	err := bencode.Unmarshal([]byte("li0ei1ei2ei3ei4ei5ei6ei7ei8ei9ee"), &s)
+	require.NoError(t, err)
+	require.Len(t, s, 10)
+	require.Equal(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, s)
+}
+
+// --- bool invalid values ---
+
+func TestUnmarshal_bool_invalid(t *testing.T) {
+	var b bool
+	err := bencode.Unmarshal([]byte("i2e"), &b)
+	require.Error(t, err)
+
+	err = bencode.Unmarshal([]byte("i"), &b)
+	require.Error(t, err)
+}
+
+// --- edge-case integer parsing (leading zero, missing e, etc.) ---
+
+func TestUnmarshal_int_edge_cases(t *testing.T) {
+	var i int
+
+	// leading zero
+	err := bencode.Unmarshal([]byte("i01e"), &i)
+	require.Error(t, err)
+
+	// negative with leading zero
+	err = bencode.Unmarshal([]byte("i-01e"), &i)
+	require.Error(t, err)
+
+	// non-digit
+	err = bencode.Unmarshal([]byte("iabe"), &i)
+	require.Error(t, err)
+
+	// missing closing 'e' (we can't test exactly i alone since that also fails, 
+	// but "i100" will fail with missing 'e')
+	err = bencode.Unmarshal([]byte("i100"), &i)
+	require.Error(t, err)
+
+	// empty integer body
+	err = bencode.Unmarshal([]byte("ie"), &i)
+	require.Error(t, err)
+}
+
+// --- readString edge cases ---
+
+func TestUnmarshal_readString_edge_cases(t *testing.T) {
+	var s string
+
+	// no colon
+	err := bencode.Unmarshal([]byte("5"), &s)
+	require.Error(t, err)
+
+	// leading zero in length
+	err = bencode.Unmarshal([]byte("05:hello"), &s)
+	require.Error(t, err)
+
+	// non-digit length
+	err = bencode.Unmarshal([]byte("ab:hello"), &s)
+	require.Error(t, err)
+
+	// length overflow
+	err = bencode.Unmarshal([]byte("10:x"), &s)
+	require.Error(t, err)
+}
+
+// --- skip syntax errors ---
+
+func TestUnmarshal_skipValue_errors(t *testing.T) {
+	// invalid start byte in skipped value via struct
+	type S struct {
+		V string `bencode:"v"`
+	}
+	var s S
+	// key 'v' followed by something that's not a valid bencode start 
+	err := bencode.Unmarshal([]byte("d1:vxe"), &s)
+	require.Error(t, err)
+}
+
+// --- encode map with [N]byte keys (decoding already tested in TestUnmarshal_arrayBytes)
+// NOTE: encoding map with [N]byte keys panics due to unaddressable byte array in arrayByteKeyCompare.
+// This is a known bug in the library. We test via decode path only.
+func TestMarshal_map_byte_array_key_decode(t *testing.T) {
+	var m map[[2]byte]int
+	err := bencode.Unmarshal([]byte("d2:\x00\x01i42ee"), &m)
+	require.NoError(t, err)
+	require.Equal(t, map[[2]byte]int{{0, 1}: 42}, m)
+}
+
+// --- decode byte array error paths ---
+
+func TestUnmarshal_byte_array_error(t *testing.T) {
+	t.Run("wrong length", func(t *testing.T) {
+		var arr [5]byte
+		err := bencode.Unmarshal([]byte("3:ab"), &arr)
+		require.Error(t, err)
+	})
+
+	t.Run("not a string", func(t *testing.T) {
+		var arr [5]byte
+		err := bencode.Unmarshal([]byte("i42e"), &arr)
+		require.Error(t, err)
+	})
+}
+
+// --- decode integer into uint overflow ---
+
+func TestUnmarshal_uint_overflow(t *testing.T) {
+	t.Run("negative into uint", func(t *testing.T) {
+		var u uint
+		err := bencode.Unmarshal([]byte("i-1e"), &u)
+		require.Error(t, err)
+	})
+
+	t.Run("negative into uint8", func(t *testing.T) {
+		var u uint8
+		err := bencode.Unmarshal([]byte("i-1e"), &u)
+		require.Error(t, err)
+	})
+}
+
+// --- int overflow ---
+
+func TestUnmarshal_int_overflow(t *testing.T) {
+	t.Run("int8", func(t *testing.T) {
+		var i int8
+		err := bencode.Unmarshal([]byte("i99999e"), &i)
+		require.Error(t, err)
+	})
+
+	t.Run("int16", func(t *testing.T) {
+		var i int16
+		err := bencode.Unmarshal([]byte("i999999e"), &i)
+		require.Error(t, err)
+	})
+}
+
+// --- syntax error in skipDictionary / skipList ---
+
+func TestUnmarshal_syntax_skipDict_error(t *testing.T) {
+	// dict with invalid key start
+	var v struct {
+		A string `bencode:"a"`
+	}
+	err := bencode.Unmarshal([]byte("d1:xi1e1:bi2ee"), &v)
+	require.Error(t, err)
+}
+
+func TestUnmarshal_syntax_truncated(t *testing.T) {
+	var v any
+	err := bencode.Unmarshal([]byte("d1:ai1e"), &v)
+	require.Error(t, err)
+
+	err = bencode.Unmarshal([]byte("li1e"), &v)
+	require.Error(t, err)
+}
+
+// --- validateType: non-pointer value ---
+
+func TestUnmarshal_validateType(t *testing.T) {
+	t.Run("non-pointer", func(t *testing.T) {
+		type S struct{ F int }
+		var s S
+		err := bencode.Unmarshal([]byte("de"), s)
+		require.Error(t, err)
+	})
+}
+
+// --- slice of unsupported element type ---
+
+func TestUnmarshal_slice_of_unsupported(t *testing.T) {
+	t.Run("func", func(t *testing.T) {
+		var s []func()
+		err := bencode.Unmarshal([]byte("li1ee"), &s)
+		require.Error(t, err)
+	})
+
+	t.Run("chan", func(t *testing.T) {
+		var s []chan int
+		err := bencode.Unmarshal([]byte("li1ee"), &s)
+		require.Error(t, err)
+	})
+}
+
+// --- array of unsupported element type ---
+
+func TestUnmarshal_array_of_unsupported(t *testing.T) {
+	t.Run("func", func(t *testing.T) {
+		var a [3]func()
+		err := bencode.Unmarshal([]byte("de"), &a)
+		require.Error(t, err)
+	})
+}
+
+// --- triple pointer (triggers newPtrDecoder error) ---
+
+func TestUnmarshal_triple_ptr(t *testing.T) {
+	var p ***int
+	err := bencode.Unmarshal([]byte("de"), &p)
+	require.Error(t, err)
+}
+
+// --- decodeKey with invalid key (readString error in struct key) ---
+
+func TestUnmarshal_struct_invalid_key(t *testing.T) {
+	type S struct {
+		F string `bencode:"f"`
+	}
+	var s S
+	// key length 100 but only 3 bytes available
+	err := bencode.Unmarshal([]byte("d100:fi1ee"), &s)
+	require.Error(t, err)
+}
+
+// --- ptr_to_ptr (compileStruct nested ptr) already covered by TestUnmarshal_nestedPtr ---
+
+// --- reflectInterfaceValue nil/zero interface ---
+
+func TestMarshal_nil_interface(t *testing.T) {
+	type S struct {
+		Value any `bencode:"value"`
+	}
+	s := S{Value: nil}
+	b, err := bencode.Marshal(s)
+	require.NoError(t, err)
+	// nil interface field is encoded as empty
+	require.Equal(t, "d5:valuee", string(b))
+}
+
+// --- Marshaler returning empty bytes ---
+
+type emptyMarshaler struct{}
+
+func (e emptyMarshaler) MarshalBencode() ([]byte, error) {
+	return []byte{}, nil
+}
+
+var _ bencode.Marshaler = emptyMarshaler{}
+
+func TestMarshal_empty_marshaler(t *testing.T) {
+	_, err := bencode.Marshal(emptyMarshaler{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "empty bytes")
+}
+
+// --- big.Int pointer nil (the nil path in encodeBigIntPtr) ---
+
+func TestMarshal_bigIntPtr_nil(t *testing.T) {
+	type S struct {
+		V *big.Int `bencode:"v"`
+	}
+	s := S{V: nil}
+	b, err := bencode.Marshal(s)
+	require.NoError(t, err)
+	require.Equal(t, "de", string(b))
+}
+
+// --- struct field decode error wrapping ---
+
+func TestUnmarshal_struct_field_decode_error(t *testing.T) {
+	type S struct {
+		F int `bencode:"f"`
+	}
+	var s S
+	// string "hello" cannot be decoded into int
+	err := bencode.Unmarshal([]byte("d1:f5:helloe"), &s)
+	require.Error(t, err)
+}
+
+// --- Marshal with unsupported type (hits compile default case) ---
+
+func TestMarshal_unsupported_type(t *testing.T) {
+	_, err := bencode.Marshal(float64(1.0))
+	require.Error(t, err)
+
+	_, err = bencode.Marshal(complex128(0))
+	require.Error(t, err)
+
+	_, err = bencode.Marshal(make(chan int))
+	require.Error(t, err)
+}
+
+// --- Encode with writer error ---
+
+type errWriter struct{}
+
+func (e errWriter) Write([]byte) (int, error) {
+	return 0, fmt.Errorf("write error")
+}
+
+func TestEncoder_Encode_write_error(t *testing.T) {
+	enc := bencode.NewEncoder(errWriter{})
+	err := enc.Encode(42)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "write error")
+}
+
+// --- struct with anonymous non-struct field (triggers compile error) ---
+
+func TestMarshal_anonymous_non_struct(t *testing.T) {
+	type MyInt int
+	type S struct {
+		MyInt
+	}
+	_, err := bencode.Marshal(S{})
+	require.Error(t, err)
+}
+
+func TestUnmarshal_anonymous_non_struct(t *testing.T) {
+	type MyInt int
+	type S struct {
+		MyInt
+	}
+	var s S
+	err := bencode.Unmarshal([]byte("de"), &s)
+	require.Error(t, err)
+}
+
+// --- encode map with [N]byte keys ---
+
+func TestMarshal_map_byte_array_key(t *testing.T) {
+	m := map[[2]byte]int{
+		{0, 1}: 42,
+		{2, 3}: 100,
+	}
+	b, err := bencode.Marshal(m)
+	require.NoError(t, err)
+	// keys sorted by byte comparison: [0,1] < [2,3]
+	require.Equal(t, "d2:\x00\x01i42e2:\x02\x03i100ee", string(b))
+}
+
+// --- skipValue default: skipped value starts with invalid character ---
+
+func TestUnmarshal_skipValue_default(t *testing.T) {
+	type S struct {
+		W int `bencode:"w"`
+	}
+	var s S
+	// key 'x' doesn't match struct, its value starts with 'x' (invalid bencode)
+	err := bencode.Unmarshal([]byte("d1:wi1e1:xxe"), &s)
+	require.Error(t, err)
+}
+
+// --- skipDictionary: key without value in skipped dict ---
+
+func TestUnmarshal_skipDict_key_without_value(t *testing.T) {
+	type S struct {
+		V string `bencode:"v"`
+	}
+	var s S
+	// 'a' key exists but value ('d') starts a dict with key 'x' having no value
+	err := bencode.Unmarshal([]byte("d1:ad1:xe1:vi1ee"), &s)
+	require.Error(t, err)
+}
+
+// --- readString: size overflow ---
+
+func TestUnmarshal_readString_size_overflow(t *testing.T) {
+	var v any
+	// dict key claims length 5 but only 2 chars available
+	err := bencode.Unmarshal([]byte("d5:abe"), &v)
+	require.Error(t, err)
+}
+
+// --- array decode: truncated at start ---
+
+func TestUnmarshal_array_truncated(t *testing.T) {
+	var a [5]int
+	err := bencode.Unmarshal([]byte("l"), &a)
+	require.Error(t, err)
+}
+
+// --- map decode: data too short ---
+
+func TestUnmarshal_map_truncated(t *testing.T) {
+	var m map[string]int
+	err := bencode.Unmarshal([]byte("di1e"), &m)
+	require.Error(t, err)
+}
+
+// --- struct decode: truncated dict ---
+
+func TestUnmarshal_struct_truncated(t *testing.T) {
+	type S struct {
+		F int `bencode:"f"`
+	}
+	var s S
+	// missing closing 'e'
+	err := bencode.Unmarshal([]byte("d1:fi1e"), &s)
+	require.Error(t, err)
+}
+
+// --- bool decode: invalid first char ---
+
+func TestUnmarshal_bool_not_int(t *testing.T) {
+	var b bool
+	err := bencode.Unmarshal([]byte("1:a"), &b)
+	require.Error(t, err)
+}
+
+// --- int decode: missing 'e' ---
+
+func TestUnmarshal_int_no_closing_e(t *testing.T) {
+	var i int
+	err := bencode.Unmarshal([]byte("i42"), &i)
+	require.Error(t, err)
+}
+
+// --- bool decode: missing 'e' after digit ---
+
+func TestUnmarshal_bool_truncated(t *testing.T) {
+	var b bool
+	err := bencode.Unmarshal([]byte("i1x"), &b)
+	require.Error(t, err)
+}
+
+// --- array decode: non-list input ---
+
+func TestUnmarshal_array_not_list(t *testing.T) {
+	var a [5]int
+	err := bencode.Unmarshal([]byte("i1e"), &a)
+	require.Error(t, err)
+}
+
+// --- map decode: non-dict input ---
+
+func TestUnmarshal_map_not_dict(t *testing.T) {
+	var m map[string]int
+	err := bencode.Unmarshal([]byte("i1e"), &m)
+	require.Error(t, err)
+}
+
+// --- slice decode: non-list input ---
+
+func TestUnmarshal_slice_not_list(t *testing.T) {
+	var s []int
+	err := bencode.Unmarshal([]byte("i1e"), &s)
+	require.Error(t, err)
+}
+
+// --- any: truncated list ---
+
+func TestUnmarshal_any_truncated_list(t *testing.T) {
+	var v any
+	err := bencode.Unmarshal([]byte("l"), &v)
+	require.Error(t, err)
+}
+
+// --- any: truncated dict ---
+
+func TestUnmarshal_any_truncated_dict(t *testing.T) {
+	var v any
+	err := bencode.Unmarshal([]byte("d"), &v)
+	require.Error(t, err)
+}
+
+// --- any: list with depth exceeded ---
+
+func TestUnmarshal_any_list_depth_exceeded(t *testing.T) {
+	var v any
+	raw := make([]byte, 0, 10002)
+	for i := 0; i < 10001; i++ {
+		raw = append(raw, 'l')
+	}
+	raw = append(raw, 'e')
+	err := bencode.Unmarshal(raw, &v)
+	require.Error(t, err)
+}
+
+// --- any: dict with depth exceeded ---
+
+func TestUnmarshal_any_dict_depth_exceeded(t *testing.T) {
+	var v any
+	raw := make([]byte, 0, 10002)
+	for i := 0; i < 10001; i++ {
+		raw = append(raw, 'd', '1', ':', 'a')
+	}
+	raw = append(raw, 'i', '0', 'e')
+	raw = append(raw, 'e')
+	err := bencode.Unmarshal(raw, &v)
+	require.Error(t, err)
+}
+
+// --- slice decode: depth exceeded ---
+
+func TestUnmarshal_slice_depth_exceeded(t *testing.T) {
+	var s []any
+	raw := make([]byte, 0, 10002)
+	for i := 0; i < 10001; i++ {
+		raw = append(raw, 'l')
+	}
+	for i := 0; i < 10001; i++ {
+		raw = append(raw, 'e')
+	}
+	err := bencode.Unmarshal(raw, &s)
+	require.Error(t, err)
+}
+
+// --- int decode: non-digit chars ---
+
+func TestUnmarshal_int_non_digit(t *testing.T) {
+	var i int
+	err := bencode.Unmarshal([]byte("i1a0e"), &i)
+	require.Error(t, err)
+}
+
+// --- decodeAny: empty buffer ---
+
+func TestUnmarshal_any_empty(t *testing.T) {
+	var v any
+	err := bencode.Unmarshal([]byte(""), &v)
+	require.Error(t, err)
+}
+
+// --- struct: unknown key with skipped list error ---
+
+func TestUnmarshal_struct_skip_list_error(t *testing.T) {
+	type S struct {
+		F string `bencode:"f"`
+	}
+	var s S
+	// key 'x' doesn't match, value starts with 'l' but is incomplete
+	err := bencode.Unmarshal([]byte("d1:xl1:fi1ee"), &s)
+	require.Error(t, err)
+}
+
+// --- int decode: first char not 'i' ---
+
+func TestUnmarshal_decodeIntegerBytes_not_i(t *testing.T) {
+	var i int
+	err := bencode.Unmarshal([]byte("1:a"), &i)
+	require.Error(t, err)
 }

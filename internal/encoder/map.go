@@ -89,7 +89,7 @@ func stringKeyCompare(a reflect.Value, b reflect.Value) int {
 }
 
 func arrayByteKeyCompare(a reflect.Value, b reflect.Value) int {
-	return bytes.Compare(a.Bytes(), b.Bytes())
+	return bytes.Compare(byteArrayToBytes(a), byteArrayToBytes(b))
 }
 
 func appendEmptyMap(b []byte) []byte {

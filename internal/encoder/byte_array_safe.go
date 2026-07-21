@@ -29,3 +29,17 @@ func compileBytesArray(rt reflect.Type) (encoder, error) {
 		return b, nil
 	}, nil
 }
+
+// byteArrayToBytes returns a []byte view of a [N]byte array.
+// For addressable values it's zero-copy via Bytes(); for unaddressable
+// (e.g. from MapKeys()) it copies into a new slice.
+func byteArrayToBytes(rv reflect.Value) []byte {
+	if rv.CanAddr() {
+		return rv.Bytes()
+	}
+	b := make([]byte, rv.Len())
+	for i := range b {
+		b[i] = byte(rv.Index(i).Uint())
+	}
+	return b
+}

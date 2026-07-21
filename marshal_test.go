@@ -1208,3 +1208,72 @@ func TestMarshal_nestedPtr(t *testing.T) {
 	_, err := bencode.Marshal(data)
 	require.Error(t, err)
 }
+
+func TestNewEncoder_Encode(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		var buf strings.Builder
+		enc := bencode.NewEncoder(&buf)
+		require.NoError(t, enc.Encode(42))
+		require.Equal(t, "i42e", buf.String())
+	})
+
+	t.Run("encode nil map", func(t *testing.T) {
+		var buf strings.Builder
+		enc := bencode.NewEncoder(&buf)
+		require.NoError(t, enc.Encode(map[string]string(nil)))
+		require.Equal(t, "de", buf.String())
+	})
+
+	t.Run("encode struct", func(t *testing.T) {
+		var buf strings.Builder
+		enc := bencode.NewEncoder(&buf)
+		require.NoError(t, enc.Encode(Item{V: 7}))
+		require.Equal(t, "d1:vi7ee", buf.String())
+	})
+}
+
+func TestMarshal_byte_slice_standalone(t *testing.T) {
+	actual, err := bencode.Marshal([]byte("hello"))
+	require.NoError(t, err)
+	test.StringEqual(t, "5:hello", actual)
+
+	actual, err = bencode.Marshal([]byte{})
+	require.NoError(t, err)
+	test.StringEqual(t, "0:", actual)
+}
+
+func TestAppendInt(t *testing.T) {
+	b := bencode.AppendInt(nil, 42)
+	require.Equal(t, "i42e", string(b))
+
+	b = bencode.AppendInt(nil, -7)
+	require.Equal(t, "i-7e", string(b))
+
+	b = bencode.AppendInt(nil, 0)
+	require.Equal(t, "i0e", string(b))
+
+	b = bencode.AppendInt([]byte("prefix"), 1)
+	require.Equal(t, "prefixi1e", string(b))
+}
+
+func TestAppendStr(t *testing.T) {
+	b := bencode.AppendStr(nil, "hello")
+	require.Equal(t, "5:hello", string(b))
+
+	b = bencode.AppendStr(nil, "")
+	require.Equal(t, "0:", string(b))
+
+	b = bencode.AppendStr([]byte("pre"), "x")
+	require.Equal(t, "pre1:x", string(b))
+}
+
+func TestAppendBytes(t *testing.T) {
+	b := bencode.AppendBytes(nil, []byte("hello"))
+	require.Equal(t, "5:hello", string(b))
+
+	b = bencode.AppendBytes(nil, []byte{})
+	require.Equal(t, "0:", string(b))
+
+	b = bencode.AppendBytes([]byte("pre"), []byte("yz"))
+	require.Equal(t, "pre2:yz", string(b))
+}
