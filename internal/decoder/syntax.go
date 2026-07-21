@@ -151,7 +151,9 @@ func readString(buf []byte, cursor int) ([]byte, int, error) {
 		return nil, 0, fmt.Errorf("invalid bytes, length is not valid int. index %d", cursor)
 	}
 
-	if len(buf) <= cursor+colon+size {
+	// size is attacker-controlled up to maxint64; subtract instead of adding so
+	// cursor+colon+size can't overflow int and wrap negative past the bound check.
+	if size > len(buf)-(cursor+colon+1) {
 		return nil, 0, errors.ErrSyntax("invalid bytes, size overflow buffer. index %d", cursor)
 	}
 
