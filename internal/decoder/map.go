@@ -60,7 +60,7 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 
 	depth++
 	if depth > maxDecodeNestingDepth {
-		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
+		return 0, errors.ErrExceededMaxDepth(buf[cursor-1], cursor-1)
 	}
 
 	if bufSize < 2 {
@@ -105,6 +105,9 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 		lastKey = currentKey
 
 		cursor = keyCursor
+		if cursor >= bufSize {
+			return 0, errors.DataTooShort()
+		}
 
 		v := reflect.New(d.valueType).Elem()
 		valueCursor, err := d.valueDecoder.Decode(ctx, cursor, depth, v)

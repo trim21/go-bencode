@@ -53,7 +53,10 @@ func (e *Encoder) Encode(v any) error {
 		return err
 	}
 
-	_, err = e.w.Write(ctx.Buf)
+	n, err := e.w.Write(ctx.Buf)
+	if err == nil && n != len(ctx.Buf) {
+		return io.ErrShortWrite
+	}
 	return err
 }
 

@@ -20,11 +20,17 @@ func UnmarshalRelaxed(data []byte, v any) error {
 
 func unmarshal(data []byte, v any, relaxed bool) error {
 	rv := reflect.ValueOf(v)
+	if !rv.IsValid() {
+		return &errors.InvalidUnmarshalError{}
+	}
 
 	rt := rv.Type()
 
 	if err := validateType(rt); err != nil {
 		return err
+	}
+	if rv.IsNil() {
+		return &errors.InvalidUnmarshalError{Type: rt}
 	}
 
 	dec, err := CompileToGetDecoder(rt)

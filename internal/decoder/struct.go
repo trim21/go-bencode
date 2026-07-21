@@ -176,7 +176,7 @@ func (d *structDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect
 		cursor = c
 
 		if cursor >= bufSize {
-			return 0, errors.ErrExpecting("object value after colon", buf, cursor)
+			return 0, errors.DataTooShort()
 		}
 
 		if field == nil {

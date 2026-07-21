@@ -82,6 +82,9 @@ func ErrUnexpectedEnd(msg string, cursor int) *SyntaxError {
 }
 
 func ErrExpecting(msg string, buf []byte, cursor int) error {
+	if cursor >= len(buf) {
+		return ErrUnexpectedEnd(msg, cursor)
+	}
 	return fmt.Errorf("bencode: expecting start of %s, found '%c' instead. index %d", msg, buf[cursor], cursor)
 }
 

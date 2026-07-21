@@ -29,14 +29,18 @@ func newSliceDecoder(dec Decoder, elemType reflect.Type, structName, fieldName s
 
 func (d *sliceDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
 	buf := ctx.Buf
+	bufSize := len(buf)
+	if cursor >= bufSize {
+		return 0, errors.DataTooShort()
+	}
+
 	depth++
 	if depth > maxDecodeNestingDepth {
 		return 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
 	}
 
-	bufSize := len(buf)
-	if cursor >= bufSize {
-		return 0, errors.DataTooShort()
+	if buf[cursor] != 'l' {
+		return 0, errors.ErrExpecting("list", buf, cursor)
 	}
 
 	cursor++

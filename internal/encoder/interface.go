@@ -16,7 +16,7 @@ LOOP:
 		switch rv.Kind() {
 		case reflect.Pointer, reflect.Interface:
 			if rv.IsNil() || rv.IsZero() {
-				return b, nil
+				return b, ErrNilValue
 			}
 			rv = rv.Elem()
 		default:

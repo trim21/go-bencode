@@ -1223,7 +1223,7 @@ func TestUnmarshal_struct_invalid_key(t *testing.T) {
 
 // --- ptr_to_ptr (compileStruct nested ptr) already covered by TestUnmarshal_nestedPtr ---
 
-// --- reflectInterfaceValue nil/zero interface ---
+// --- reflectInterfaceValue nil interface ---
 
 func TestMarshal_nil_interface(t *testing.T) {
 	type S struct {
@@ -1231,9 +1231,8 @@ func TestMarshal_nil_interface(t *testing.T) {
 	}
 	s := S{Value: nil}
 	b, err := bencode.Marshal(s)
-	require.NoError(t, err)
-	// nil interface field is encoded as empty
-	require.Equal(t, "d5:valuee", string(b))
+	require.Error(t, err)
+	require.Nil(t, b)
 }
 
 // --- Marshaler returning empty bytes ---
