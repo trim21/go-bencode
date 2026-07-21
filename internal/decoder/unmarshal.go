@@ -55,7 +55,7 @@ func validateEndBuf(src []byte, cursor int) error {
 }
 
 func validateType(rt reflect.Type) error {
-	if rt == nil || rt.Kind() != reflect.Ptr {
+	if rt == nil || rt.Kind() != reflect.Pointer {
 		return &errors.InvalidUnmarshalError{Type: rt}
 	}
 	return nil

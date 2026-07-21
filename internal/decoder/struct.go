@@ -59,8 +59,8 @@ func compileStruct(rt reflect.Type, structName, fieldName string, structTypeToDe
 			}
 		}
 
-		if field.Type.Kind() == reflect.Ptr {
-			if field.Type.Elem().Kind() == reflect.Ptr {
+		if field.Type.Kind() == reflect.Pointer {
+			if field.Type.Elem().Kind() == reflect.Pointer {
 				return nil, fmt.Errorf("bencode: nested ptr field is not supported %s", rt.String())
 			}
 		}

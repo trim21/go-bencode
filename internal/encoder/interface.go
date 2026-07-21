@@ -14,7 +14,7 @@ func reflectInterfaceValue(ctx *Context, b []byte, rv reflect.Value) ([]byte, er
 LOOP:
 	for {
 		switch rv.Kind() {
-		case reflect.Ptr, reflect.Interface:
+		case reflect.Pointer, reflect.Interface:
 			if rv.IsNil() || rv.IsZero() {
 				return b, nil
 			}

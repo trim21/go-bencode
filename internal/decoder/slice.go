@@ -21,7 +21,7 @@ func newSliceDecoder(dec Decoder, elemType reflect.Type, structName, fieldName s
 		valueDecoder:      dec,
 		elemType:          elemType,
 		sType:             reflect.SliceOf(elemType),
-		isElemPointerType: elemType.Kind() == reflect.Ptr || elemType.Kind() == reflect.Map,
+		isElemPointerType: elemType.Kind() == reflect.Pointer || elemType.Kind() == reflect.Map,
 		structName:        structName,
 		fieldName:         fieldName,
 	}

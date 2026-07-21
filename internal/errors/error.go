@@ -14,7 +14,7 @@ func (e *InvalidUnmarshalError) Error() string {
 		return "bencode: Unmarshal(nil)"
 	}
 
-	if e.Type.Kind() != reflect.Ptr {
+	if e.Type.Kind() != reflect.Pointer {
 		return fmt.Sprintf("bencode: Unmarshal(non-pointer %s)", e.Type)
 	}
 	return fmt.Sprintf("bencode: Unmarshal(nil %s)", e.Type)

@@ -309,7 +309,7 @@ func TestMarshal_ptr(t *testing.T) {
 			B *int `bencode:"b"`
 		}
 
-		var i int = 50
+		var i = 50
 
 		actual, err := bencode.Marshal(Indirect{B: &i})
 		require.NoError(t, err)
@@ -323,7 +323,7 @@ func TestMarshal_ptr(t *testing.T) {
 			B *int `bencode:"b,omitempty"`
 		}
 
-		var i int = 50
+		var i = 50
 
 		actual, err := bencode.Marshal(Indirect{A: &i})
 		require.NoError(t, err)
@@ -336,7 +336,7 @@ func TestMarshal_ptr(t *testing.T) {
 			Value *int `bencode:"value"`
 		}
 
-		var i int = 50
+		var i = 50
 
 		t.Run("encode", func(t *testing.T) {
 			actual, err := bencode.Marshal(Direct{Value: &i})
@@ -913,26 +913,61 @@ func equalMarshaled(t *testing.T, a string, v any) {
 	test.StringEqual(t, a, actual)
 }
 
-func TestRecursivePanic(t *testing.T) {
-	type O struct {
-		Name string
-		E    []O
-	}
+type RecursiveA struct {
+	Value *RecursiveB
+}
+type RecursiveB struct {
+	Value *RecursiveA
+}
 
-	actual, err := bencode.Marshal(O{
-		Name: "hello",
-		E: []O{
-			{
-				Name: "BB",
-				E: []O{
-					{Name: "C C D D E E F F"},
+func TestRecursive(t *testing.T) {
+	t.Run("type", func(t *testing.T) {
+		type O struct {
+			Name string
+			E    []O
+		}
+
+		actual, err := bencode.Marshal(O{
+			Name: "hello",
+			E: []O{
+				{
+					Name: "BB",
+					E: []O{
+						{Name: "C C D D E E F F"},
+					},
 				},
 			},
-		},
+		})
+		require.NoError(t, err)
+		expected := `d1:Eld1:Eld1:Ele4:Name15:C C D D E E F Fee4:Name2:BBee4:Name5:helloe`
+		test.StringEqual(t, expected, actual)
 	})
-	require.NoError(t, err)
-	expected := `d1:Eld1:Eld1:Ele4:Name15:C C D D E E F Fee4:Name2:BBee4:Name5:helloe`
-	test.StringEqual(t, expected, actual)
+
+	t.Run("value", func(t *testing.T) {
+		var a RecursiveA
+		var b RecursiveB
+		a.Value = &b
+		b.Value = &a
+
+		_, err := bencode.Marshal(a)
+		require.Error(t, err)
+	})
+
+	t.Run("map self", func(t *testing.T) {
+		m := map[string]any{}
+		m["self"] = m
+
+		_, err := bencode.Marshal(m)
+		require.Error(t, err)
+	})
+
+	t.Run("slice self", func(t *testing.T) {
+		s := make([]any, 1)
+		s[0] = &s
+
+		_, err := bencode.Marshal(s)
+		require.Error(t, err)
+	})
 }
 
 type userMarshaler struct {

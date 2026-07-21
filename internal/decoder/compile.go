@@ -57,7 +57,7 @@ func compile(rt reflect.Type, structName, fieldName string, structTypeToDecoder 
 	}
 
 	switch rt.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return compilePtr(rt, structName, fieldName, structTypeToDecoder)
 	case reflect.Struct:
 		return compileStruct(rt, structName, fieldName, structTypeToDecoder)

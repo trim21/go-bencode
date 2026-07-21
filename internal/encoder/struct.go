@@ -12,14 +12,12 @@ import (
 type structEncoder struct {
 	fieldIndex []int
 
-	// a direct value handler, like `encodeInt`
-	// struct encoder should de-ref pointers and pass real address to encoder.
+	// Encodes both the field name and value.
 	encode    encoder
 	fieldName string // field fieldName
 	omitEmpty bool
 	// support for Anonymous struct
 	isZero func(reflect.Value) bool
-	ptr    bool
 }
 
 type seenMap = map[reflect.Type]*structRecEncoder
@@ -100,15 +98,6 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 				}
 			}
 
-			if field.ptr {
-				if v.IsNil() {
-					continue
-				}
-
-				v = v.Elem()
-			}
-
-			b = AppendStr(b, field.fieldName)
 			b, err = field.encode(ctx, b, v)
 			if err != nil {
 				return b, err
@@ -116,6 +105,57 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 		}
 
 		return append(b, 'e'), nil
+	}, nil
+}
+
+func compileStructField(rt reflect.Type, fieldName string, seen seenMap) (encoder, error) {
+	if rt.Kind() != reflect.Pointer {
+		inner, err := compile(rt, seen)
+		if err != nil {
+			return nil, err
+		}
+
+		return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
+			return inner(ctx, AppendStr(b, fieldName), rv)
+		}, nil
+	}
+
+	if rt.Elem().Kind() == reflect.Pointer {
+		return nil, fmt.Errorf("bencode: nested ptr is not supported %s", rt.String())
+	}
+
+	inner, err := compile(rt.Elem(), seen)
+	if err != nil {
+		return nil, err
+	}
+
+	elemStruct := rt.Elem().Kind() == reflect.Struct
+
+	return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
+		if rv.IsNil() {
+			return b, nil
+		}
+
+		b = AppendStr(b, fieldName)
+
+		if elemStruct {
+			if ctx.depth++; ctx.depth > startDetectingCyclesAfter {
+				ptr := rv.UnsafePointer()
+				if _, ok := ctx.ptrSeen[ptr]; ok {
+					return b, fmt.Errorf("bencode: encountered a cycle via %s", rv.Type())
+				}
+				ctx.ptrSeen[ptr] = empty{}
+				defer delete(ctx.ptrSeen, ptr)
+			}
+		}
+
+		b, encodeErr := inner(ctx, b, rv.Elem())
+
+		if elemStruct {
+			ctx.depth--
+		}
+
+		return b, encodeErr
 	}, nil
 }
 
@@ -165,22 +205,7 @@ func compileStructFieldsEncoder(ft reflect.StructField, fieldIndex []int, index 
 		}
 	}
 
-	var fieldEncoder encoder
-	var err error
-
-	var isPtrField = rt.Kind() == reflect.Ptr
-	if isPtrField {
-		if rt.Elem().Kind() == reflect.Ptr {
-			return nil, fmt.Errorf("bencode: nested ptr is not supported %s", rt.String())
-		}
-	}
-
-	if isPtrField {
-		fieldEncoder, err = compile(rt.Elem(), seen)
-	} else {
-		fieldEncoder, err = compile(rt, seen)
-	}
-
+	fieldEncoder, err := compileStructField(rt, cfg.Name(), seen)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +216,6 @@ func compileStructFieldsEncoder(ft reflect.StructField, fieldIndex []int, index 
 		fieldName:  cfg.Name(),
 		isZero:     compileIsZero(ft.Type),
 		omitEmpty:  cfg.IsOmitEmpty,
-		ptr:        isPtrField,
 	})
 
 	return encoders, nil
