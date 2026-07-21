@@ -33,7 +33,7 @@ func (d *interfaceDecoder) Decode(ctx *Context, cursor int, depth int64, rv refl
 		return 0, errors.ErrSyntax("input too short when decoding any", cursor)
 	}
 
-	v, end, err := d.decodeAny(ctx, cursor)
+	v, end, err := d.decodeAny(ctx, cursor, depth)
 	if err != nil {
 		return 0, err
 	}
@@ -43,7 +43,7 @@ func (d *interfaceDecoder) Decode(ctx *Context, cursor int, depth int64, rv refl
 	return end, nil
 }
 
-func (d *interfaceDecoder) decodeAny(ctx *Context, cursor int) (any, int, error) {
+func (d *interfaceDecoder) decodeAny(ctx *Context, cursor int, depth int64) (any, int, error) {
 	buf := ctx.Buf
 	if cursor >= len(buf) {
 		return nil, 0, errors.ErrSyntax("input too short when decoding any", cursor)
@@ -51,9 +51,9 @@ func (d *interfaceDecoder) decodeAny(ctx *Context, cursor int) (any, int, error)
 
 	switch buf[cursor] {
 	case 'd':
-		return d.decodeDict(ctx, cursor)
+		return d.decodeDict(ctx, cursor, depth)
 	case 'l':
-		return d.decodeList(ctx, cursor)
+		return d.decodeList(ctx, cursor, depth)
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		b, end, err := readString(buf, cursor)
 		if err != nil {
@@ -72,8 +72,13 @@ func (d *interfaceDecoder) decodeAny(ctx *Context, cursor int) (any, int, error)
 	return nil, cursor, errors.ErrInvalidBeginningOfValue(buf[cursor], cursor)
 }
 
-func (d *interfaceDecoder) decodeList(ctx *Context, cursor int) ([]any, int, error) {
+func (d *interfaceDecoder) decodeList(ctx *Context, cursor int, depth int64) ([]any, int, error) {
 	buf := ctx.Buf
+
+	depth++
+	if depth > maxDecodeNestingDepth {
+		return nil, 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
+	}
 
 	bufSize := len(buf)
 	if cursor >= bufSize {
@@ -98,7 +103,7 @@ func (d *interfaceDecoder) decodeList(ctx *Context, cursor int) ([]any, int, err
 			return r, cursor, nil
 		}
 
-		v, end, err := d.decodeAny(ctx, cursor)
+		v, end, err := d.decodeAny(ctx, cursor, depth)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -109,8 +114,13 @@ func (d *interfaceDecoder) decodeList(ctx *Context, cursor int) ([]any, int, err
 	}
 }
 
-func (d *interfaceDecoder) decodeDict(ctx *Context, cursor int) (map[string]any, int, error) {
+func (d *interfaceDecoder) decodeDict(ctx *Context, cursor int, depth int64) (map[string]any, int, error) {
 	buf := ctx.Buf
+
+	depth++
+	if depth > maxDecodeNestingDepth {
+		return nil, 0, errors.ErrExceededMaxDepth(buf[cursor], cursor)
+	}
 
 	bufSize := len(buf)
 	if cursor >= bufSize {
@@ -154,7 +164,7 @@ func (d *interfaceDecoder) decodeDict(ctx *Context, cursor int) (map[string]any,
 		lastKey = rawKey
 		cursor = keyCursor
 
-		v, end, err := d.decodeAny(ctx, cursor)
+		v, end, err := d.decodeAny(ctx, cursor, depth)
 		if err != nil {
 			return nil, 0, err
 		}
