@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -1537,5 +1538,114 @@ func TestUnmarshal_struct_skip_list_error(t *testing.T) {
 func TestUnmarshal_decodeIntegerBytes_not_i(t *testing.T) {
 	var i int
 	err := bencode.Unmarshal([]byte("1:a"), &i)
+	require.Error(t, err)
+}
+
+// --- Encode with unsupported type (hits MarshalCtx error in Encode) ---
+
+func TestEncoder_Encode_unsupported(t *testing.T) {
+	var buf strings.Builder
+	enc := bencode.NewEncoder(&buf)
+	err := enc.Encode(chan int(nil))
+	require.Error(t, err)
+}
+
+// --- Marshal pointer to unsupported type (hits compilePtr inner compile error) ---
+
+func TestMarshal_ptr_to_unsupported(t *testing.T) {
+	v := new(chan int)
+	_, err := bencode.Marshal(v)
+	require.Error(t, err)
+}
+
+// --- skipList depth exceeded (during struct unmarshal, skip deeply nested list) ---
+
+func TestUnmarshal_skipList_depth_exceeded(t *testing.T) {
+	type S struct {
+		X int `bencode:"x"`
+	}
+	var s S
+	nested := strings.Repeat("l", 10001) + strings.Repeat("e", 10001)
+	raw := []byte("d1:xi1e1:y" + nested + "e")
+	err := bencode.Unmarshal(raw, &s)
+	require.Error(t, err)
+}
+
+// --- skipDictionary depth exceeded ---
+
+func TestUnmarshal_skipDict_depth_exceeded(t *testing.T) {
+	type S struct {
+		X int `bencode:"x"`
+	}
+	var s S
+	nested := strings.Repeat("d1:a", 10001) + "i0e" + strings.Repeat("e", 10001)
+	raw := []byte("d1:xi1e1:y" + nested + "e")
+	err := bencode.Unmarshal(raw, &s)
+	require.Error(t, err)
+}
+
+// --- skipDictionary: key without value in skipped dict ---
+
+func TestUnmarshal_skipDict_key_no_value(t *testing.T) {
+	type S struct {
+		X int `bencode:"x"`
+	}
+	var s S
+	// key 'y' doesn't match, value is dict "d1:z" with key but no value
+	err := bencode.Unmarshal([]byte("d1:xi1e1:yd1:zee"), &s)
+	require.Error(t, err)
+}
+
+// --- Marshal **int (hits compilePtr nested ptr check) ---
+
+func TestMarshal_nested_ptr_standalone(t *testing.T) {
+	p := new(*int)
+	_, err := bencode.Marshal(p)
+	require.Error(t, err)
+}
+
+// --- skipList: truncated list during struct skip ---
+
+func TestUnmarshal_skipList_truncated(t *testing.T) {
+	type S struct {
+		X int `bencode:"x"`
+	}
+	var s S
+	err := bencode.Unmarshal([]byte("d1:xi1e1:yle"), &s)
+	require.Error(t, err)
+}
+
+// --- readString: leading zero in multi-digit length ---
+
+func TestUnmarshal_readString_leading_zero(t *testing.T) {
+	var v any
+	err := bencode.Unmarshal([]byte("d0010:helloworlde"), &v)
+	require.Error(t, err)
+}
+
+// --- int decode: single non-digit char between i and e ---
+
+func TestUnmarshal_int_single_non_digit(t *testing.T) {
+	var i int
+	err := bencode.Unmarshal([]byte("ixe"), &i)
+	require.Error(t, err)
+}
+
+// --- int decode: non-digit in multi-char integer ---
+
+func TestUnmarshal_int_validIntBytes_fail(t *testing.T) {
+	var i int
+	err := bencode.Unmarshal([]byte("i1x2e"), &i)
+	require.Error(t, err)
+}
+
+// --- big.Int decode: invalid integer ---
+
+func TestUnmarshal_bigInt_invalid(t *testing.T) {
+	type S struct {
+		V *big.Int `bencode:"v"`
+	}
+	var s S
+	err := bencode.Unmarshal([]byte("d1:v1:xe"), &s)
 	require.Error(t, err)
 }
