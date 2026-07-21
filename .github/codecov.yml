@@ -1,5 +1,7 @@
 ignore:
   - ./internal/test/
+  - ./internal/errors/
+  - ./internal/encoder/error.go
 coverage:
   status:
     patch: off
