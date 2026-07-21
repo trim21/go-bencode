@@ -63,15 +63,6 @@ func (e *UnsupportedTypeError) Error() string {
 	return fmt.Sprintf("bencode: unsupported type: %s", e.Type)
 }
 
-type UnsupportedValueError struct {
-	Value reflect.Value
-	Str   string
-}
-
-func (e *UnsupportedValueError) Error() string {
-	return fmt.Sprintf("bencode: unsupported value: %s", e.Str)
-}
-
 func ErrSyntax(msg string, offset int) *SyntaxError {
 	return &SyntaxError{msg: msg, Offset: offset}
 }

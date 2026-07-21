@@ -33,17 +33,6 @@ func (s StructTag) Name() string {
 	return s.Field.Name
 }
 
-type StructTags []*StructTag
-
-func (t StructTags) ExistsKey(key string) bool {
-	for _, tt := range t {
-		if tt.Key == key {
-			return true
-		}
-	}
-	return false
-}
-
 func isValidTag(s string) bool {
 	if s == "" {
 		return false
