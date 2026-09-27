@@ -109,6 +109,10 @@ func compileStructFields(rt reflect.Type, seen seenMap) (encoder, error) {
 }
 
 func compileStructField(rt reflect.Type, fieldName string, seen seenMap) (encoder, error) {
+	// The key of the entry is the field name, which is known at compile time, so
+	// its length prefix is encoded once here rather than for every struct.
+	key := AppendStr(nil, fieldName)
+
 	if rt.Kind() != reflect.Pointer {
 		inner, err := compile(rt, seen)
 		if err != nil {
@@ -116,7 +120,7 @@ func compileStructField(rt reflect.Type, fieldName string, seen seenMap) (encode
 		}
 
 		return func(ctx *Context, b []byte, rv reflect.Value) ([]byte, error) {
-			return inner(ctx, AppendStr(b, fieldName), rv)
+			return inner(ctx, append(b, key...), rv)
 		}, nil
 	}
 
@@ -136,7 +140,7 @@ func compileStructField(rt reflect.Type, fieldName string, seen seenMap) (encode
 			return b, nil
 		}
 
-		b = AppendStr(b, fieldName)
+		b = append(b, key...)
 
 		if elemStruct {
 			if ctx.depth++; ctx.depth > startDetectingCyclesAfter {
