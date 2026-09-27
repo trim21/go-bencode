@@ -1277,3 +1277,56 @@ func TestAppendBytes(t *testing.T) {
 	b = bencode.AppendBytes([]byte("pre"), []byte("yz"))
 	require.Equal(t, "pre2:yz", string(b))
 }
+
+func TestMarshalTo(t *testing.T) {
+	type Data struct {
+		Name  string   `bencode:"name"`
+		Count int      `bencode:"count"`
+		Tags  []string `bencode:"tags"`
+	}
+
+	v := Data{Name: "a", Count: 2, Tags: []string{"x", "y"}}
+	// encodes to the same length as v, so a call which reuses the buffer of the
+	// first result overwrites it rather than growing out of it.
+	other := Data{Name: "b", Count: 3, Tags: []string{"z", "w"}}
+
+	t.Run("appends to dst", func(t *testing.T) {
+		want, err := bencode.Marshal(v)
+		require.NoError(t, err)
+
+		dst := []byte("prefix")
+		got, err := bencode.MarshalTo(dst, v)
+		require.NoError(t, err)
+
+		require.Equal(t, "prefix"+string(want), string(got))
+		require.Equal(t, "prefix", string(dst))
+	})
+
+	t.Run("result is not overwritten by a later call", func(t *testing.T) {
+		first, err := bencode.MarshalTo(nil, v)
+		require.NoError(t, err)
+		want := string(first)
+
+		// The pool must keep the buffer it handed to the context, not the one the
+		// caller got back: a context reused from the pool writes from its start.
+		for i := 0; i < 100; i++ {
+			// Marshal encodes into the buffer of the pooled context without
+			// replacing it first, so it is the call which overwrites the result if
+			// the pool kept the buffer MarshalTo handed out.
+			_, err := bencode.Marshal(other)
+			require.NoError(t, err)
+
+			_, err = bencode.MarshalTo(nil, other)
+			require.NoError(t, err)
+		}
+
+		require.Equal(t, want, string(first))
+	})
+
+	t.Run("returns dst on error", func(t *testing.T) {
+		dst := []byte("prefix")
+		got, err := bencode.MarshalTo(dst, func() {})
+		require.Error(t, err)
+		require.Equal(t, dst, got)
+	})
+}

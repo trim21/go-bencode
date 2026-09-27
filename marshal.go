@@ -36,6 +36,39 @@ func Marshal(v any) ([]byte, error) {
 	return append([]byte(nil), ctx.Buf...), nil
 }
 
+// MarshalTo appends the bencode encoding of v to dst and returns the extended
+// buffer. It doesn't copy the result, so the returned slice may share the array
+// of dst, and dst must not be written to while the result is still in use.
+//
+// MarshalTo is for a caller which keeps a buffer of its own and encodes many
+// values into it. A nil dst has no buffer to append to, and is the same as
+// Marshal.
+func MarshalTo(dst []byte, v any) ([]byte, error) {
+	if dst == nil {
+		return Marshal(v)
+	}
+
+	ctx := encoder.NewCtx()
+
+	// The context goes back to the pool with the buffer it came with: neither dst
+	// nor the array the encoder grows into belongs to the pool, and handing one of
+	// them to the next call would overwrite the result.
+	pooled := ctx.Buf
+	ctx.Buf = dst
+
+	err := encoder.MarshalCtx(ctx, v)
+	out := ctx.Buf
+
+	ctx.Buf = pooled
+	encoder.FreeCtx(ctx)
+
+	if err != nil {
+		return dst, err
+	}
+
+	return out, nil
+}
+
 type Encoder struct {
 	w io.Writer
 }
