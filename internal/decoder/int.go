@@ -3,6 +3,7 @@ package decoder
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -26,71 +27,92 @@ func newIntDecoder(rt reflect.Type, structName, fieldName string) *intDecoder {
 	}
 }
 
-func decodeIntegerBytes(buf []byte, cursor int) ([]byte, int, error) {
+// decodeIntegerBytes decodes the integer at cursor. It returns the digits, the
+// absolute value in num, whether the value is negative, and whether it doesn't fit
+// in a uint64: big.Int still needs the digits of such a value, while the fixed size
+// types report an error. end is the cursor of the value after the integer.
+func decodeIntegerBytes(buf []byte, cursor int) (b []byte, num uint64, neg, overflow bool, end int, err error) {
 	if buf[cursor] != 'i' {
-		return nil, cursor, errors.ErrExpecting("integer", buf, cursor)
+		return nil, 0, false, false, cursor, errors.ErrExpecting("integer", buf, cursor)
 	}
 	cursor++
 
 	e := bytes.IndexByte(buf[cursor:], 'e')
 	if e == -1 {
-		return nil, cursor, errors.ErrSyntax("invalid integer, missing ending char 'e'", cursor)
+		return nil, 0, false, false, cursor, errors.ErrSyntax("invalid integer, missing ending char 'e'", cursor)
 	}
 
 	if e == 0 {
-		return nil, cursor, errors.ErrSyntax("invalid integer", cursor)
+		return nil, 0, false, false, cursor, errors.ErrSyntax("invalid integer", cursor)
 	}
 
 	// i ... e
 
-	b := buf[cursor : cursor+e]
+	b = buf[cursor : cursor+e]
+	end = cursor + e + 1
 
-	if e == 1 {
-		if b[0] < '0' || b[0] > '9' {
-			return nil, cursor, errors.ErrSyntax("invalid int", cursor)
-		}
-
-		return b, cursor + e + 1, nil
-	}
-
-	// e >= 2
-
+	digits := b
 	if b[0] == '-' {
-		if b[1] == '0' {
-			return nil, cursor, errors.ErrSyntax("invalid int '-0' is not allowed", cursor)
+		digits = b[1:]
+		if len(digits) == 0 {
+			return nil, 0, false, false, cursor, errors.ErrSyntax("invalid int", cursor)
+		}
+		if digits[0] == '0' {
+			return nil, 0, false, false, cursor, errors.ErrSyntax("invalid int '-0' is not allowed", cursor)
+		}
+		neg = true
+	} else if b[0] == '0' && len(b) > 1 {
+		return nil, 0, false, false, cursor, errors.ErrSyntax("invalid int", cursor)
+	}
+
+	for _, c := range digits {
+		if c < '0' || c > '9' {
+			return nil, 0, false, false, cursor, errors.ErrSyntax("invalid int", cursor)
 		}
 
-		if !validIntBytes(b[1:]) {
-			return nil, cursor, errors.ErrSyntax("invalid int", cursor)
+		if overflow {
+			continue
 		}
 
-		return b, cursor + e + 1, nil
+		d := uint64(c - '0')
+		if num > (math.MaxUint64-d)/10 {
+			overflow = true
+			continue
+		}
+
+		num = num*10 + d
 	}
 
-	if b[0] == '0' {
-		return nil, cursor, errors.ErrSyntax("invalid int", cursor)
+	return b, num, neg, overflow, end, nil
+}
+
+// parseInt64 returns the value of the decoded integer, or the error which
+// strconv.ParseInt gives for it: a value which doesn't fit in an int64 is an error
+// path, and it is reported as it was.
+func parseInt64(b []byte, num uint64, neg, overflow bool) (int64, error) {
+	if overflow || (neg && num > 1<<63) || (!neg && num > 1<<63-1) {
+		return strconv.ParseInt(string(b), 10, 64)
 	}
 
-	if !validIntBytes(b) {
-		return nil, cursor, errors.ErrSyntax("invalid int", cursor)
+	i64 := int64(num)
+	if neg {
+		i64 = -i64
 	}
 
-	return b, cursor + e + 1, nil
+	return i64, nil
 }
 
 func (d *intDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
-	buf, c, err := decodeIntegerBytes(ctx.Buf, cursor)
+	b, num, neg, overflow, c, err := decodeIntegerBytes(ctx.Buf, cursor)
 	if err != nil {
 		return 0, err
 	}
 
-	cursor = c
-
-	return d.processBytes(buf, cursor, rv)
+	return d.processBytes(b, num, neg, overflow, c, rv)
 }
 
-func (d *intDecoder) processBytes(bytes []byte, cursor int, rv reflect.Value) (int, error) {
-	i64, err := strconv.ParseInt(string(bytes), 10, 64)
+func (d *intDecoder) processBytes(b []byte, num uint64, neg, overflow bool, cursor int, rv reflect.Value) (int, error) {
+	i64, err := parseInt64(b, num, neg, overflow)
 	if err != nil {
 		return 0, fmt.Errorf("failed to decode int from bencode: %w", err)
 	}
@@ -102,15 +124,6 @@ func (d *intDecoder) processBytes(bytes []byte, cursor int, rv reflect.Value) (i
 	rv.SetInt(i64)
 
 	return cursor, nil
-}
-
-func validIntBytes(buf []byte) bool {
-	for _, b := range buf[0:] {
-		if b < '0' || b > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 var typeBigInt = reflect.TypeFor[big.Int]()
@@ -128,7 +141,7 @@ type bigIntPtrDecoder struct {
 }
 
 func (b *bigIntPtrDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
-	buf, c, err := decodeIntegerBytes(ctx.Buf, cursor)
+	buf, _, _, _, c, err := decodeIntegerBytes(ctx.Buf, cursor)
 	if err != nil {
 		return 0, err
 	}

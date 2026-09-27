@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-	"strconv"
 
 	"github.com/trim21/go-bencode/internal/errors"
 )
@@ -61,11 +60,11 @@ func (d *interfaceDecoder) decodeAny(ctx *Context, cursor int, depth int64) (any
 		}
 		return string(b), end, nil
 	case 'i':
-		v, end, err := decodeIntegerBytes(buf, cursor)
+		v, num, neg, overflow, end, err := decodeIntegerBytes(buf, cursor)
 		if err != nil {
 			return nil, 0, err
 		}
-		i, err := strconv.ParseInt(string(v), 10, 64)
+		i, err := parseInt64(v, num, neg, overflow)
 		return i, end, err
 	}
 

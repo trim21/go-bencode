@@ -3,7 +3,7 @@ package decoder
 import (
 	"bytes"
 	"fmt"
-	"strconv"
+	"math"
 
 	"github.com/trim21/go-bencode/internal/errors"
 )
@@ -14,7 +14,7 @@ func skipString(buf []byte, cursor int) (int, error) {
 }
 
 func skipInteger(buf []byte, cursor int) (int, error) {
-	_, end, err := decodeIntegerBytes(buf, cursor)
+	_, _, _, _, end, err := decodeIntegerBytes(buf, cursor)
 	return end, err
 }
 
@@ -134,24 +134,16 @@ func readString(buf []byte, cursor int) ([]byte, int, error) {
 		return nil, 0, fmt.Errorf("invalid bytes, missing leading length. index %d", cursor)
 	}
 
-	sizeBuf := buf[cursor : cursor+colon]
-
-	if !validIntBytes(sizeBuf) {
+	size, leadingZero, ok := parseLength(buf[cursor : cursor+colon])
+	if !ok {
 		return nil, 0, fmt.Errorf("invalid bytes, length is not valid int. index %d", cursor)
 	}
 
-	if colon > 1 {
-		if sizeBuf[0] == '0' {
-			return nil, 0, fmt.Errorf("invalid bytes, leading 0 in length. index %d", cursor)
-		}
+	if leadingZero {
+		return nil, 0, fmt.Errorf("invalid bytes, leading 0 in length. index %d", cursor)
 	}
 
-	size, err := strconv.Atoi(string(sizeBuf))
-	if err != nil {
-		return nil, 0, fmt.Errorf("invalid bytes, length is not valid int. index %d", cursor)
-	}
-
-	// size is attacker-controlled up to maxint64; subtract instead of adding so
+	// size is attacker-controlled up to maxint; subtract instead of adding so
 	// cursor+colon+size can't overflow int and wrap negative past the bound check.
 	if size > len(buf)-(cursor+colon+1) {
 		return nil, 0, errors.ErrSyntax("invalid bytes, size overflow buffer. index %d", cursor)
@@ -162,16 +154,31 @@ func readString(buf []byte, cursor int) ([]byte, int, error) {
 	return buf[cursor+colon+1 : end], end, nil
 }
 
-func parseUint64(b []byte) (uint64, error) {
-	// fast path, input should be already validated.
-	if len(b) < 20 {
-		var r uint64
-		for _, c := range b {
-			r = r*10 + uint64(c-'0')
-		}
-
-		return r, nil
+// parseLength parses the digits of a bencode string length prefix in one pass: it
+// validates them and accumulates them, and it reports a leading zero of its own
+// because bencode gives it its own error. ok is false for a prefix which is not a
+// number, or which wouldn't fit in an int.
+func parseLength(b []byte) (size int, leadingZero bool, ok bool) {
+	if b[0] < '0' || b[0] > '9' {
+		return 0, false, false
 	}
 
-	return strconv.ParseUint(string(b), 10, 64)
+	size = int(b[0] - '0')
+	leadingZero = b[0] == '0' && len(b) > 1
+
+	for i := 1; i < len(b); i++ {
+		c := b[i]
+		if c < '0' || c > '9' {
+			return 0, false, false
+		}
+
+		d := int(c - '0')
+		if size > (math.MaxInt-d)/10 {
+			return 0, false, false
+		}
+
+		size = size*10 + d
+	}
+
+	return size, leadingZero, true
 }

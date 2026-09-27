@@ -32,31 +32,24 @@ func (d *uintDecoder) typeError(buf []byte, offset int) *errors.UnmarshalTypeErr
 }
 
 func (d *uintDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
-	bytes, c, err := decodeIntegerBytes(ctx.Buf, cursor)
+	bytes, num, neg, overflow, c, err := decodeIntegerBytes(ctx.Buf, cursor)
 	if err != nil {
 		return 0, err
 	}
 
-	if bytes[0] == '-' {
+	if neg {
 		return 0, errors.ErrValueOverflow(string(bytes), rv.Type().Kind().String())
 	}
 
-	cursor = c
-
-	return d.processBytes(bytes, cursor, rv)
-}
-
-func (d *uintDecoder) processBytes(bytes []byte, cursor int, rv reflect.Value) (int, error) {
-	u64, err := parseUint64(bytes)
-	if err != nil {
-		return 0, d.typeError(bytes, cursor)
+	if overflow {
+		return 0, d.typeError(bytes, c)
 	}
 
-	if rv.OverflowUint(u64) {
-		return 0, errors.ErrValueOverflow(u64, rv.Type().Kind().String())
+	if rv.OverflowUint(num) {
+		return 0, errors.ErrValueOverflow(num, rv.Type().Kind().String())
 	}
 
-	rv.SetUint(u64)
+	rv.SetUint(num)
 
-	return cursor, nil
+	return c, nil
 }
