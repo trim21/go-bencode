@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/trim21/go-bencode/internal/errors"
 )
@@ -24,24 +25,37 @@ func compileMap(rt reflect.Type, structName, fieldName string, structTypeToDecod
 
 type mapDecoder struct {
 	mapType      reflect.Type
-	keyType      reflect.Type
-	valueType    reflect.Type
 	keyDecoder   Decoder
 	valueDecoder Decoder
 	structName   string
 	fieldName    string
+	// temps holds the zero values the key and the value of an entry are decoded
+	// into, which SetMapIndex copies into the map and which are zeroed for the
+	// next entry, so that decoding an entry allocates neither of them. A pool is
+	// per decoder, so the entries of a nested map use other values.
+	temps sync.Pool
+}
+
+// mapTemps are the zero values of the key and of the value of a map.
+type mapTemps struct {
+	k, v reflect.Value
 }
 
 func newMapDecoder(mapType reflect.Type, keyType reflect.Type, keyDec Decoder, valueType reflect.Type, valueDec Decoder, structName, fieldName string) *mapDecoder {
-	return &mapDecoder{
+	d := &mapDecoder{
 		mapType:      mapType,
 		keyDecoder:   keyDec,
-		keyType:      keyType,
-		valueType:    valueType,
 		valueDecoder: valueDec,
 		structName:   structName,
 		fieldName:    fieldName,
 	}
+	d.temps.New = func() any {
+		return &mapTemps{
+			k: reflect.New(keyType).Elem(),
+			v: reflect.New(valueType).Elem(),
+		}
+	}
+	return d
 }
 
 func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Value) (int, error) {
@@ -71,6 +85,11 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 		rv.Set(reflect.MakeMapWithSize(d.mapType, 8))
 	}
 
+	t := d.temps.Get().(*mapTemps)
+	defer d.temps.Put(t)
+
+	k, v := t.k, t.v
+
 	var lastKey []byte
 
 	for {
@@ -88,7 +107,7 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 			return 0, err
 		}
 
-		k := reflect.New(d.keyType).Elem()
+		k.SetZero()
 		keyCursor, err := d.keyDecoder.Decode(ctx, cursor, depth, k)
 		if err != nil {
 			return 0, err
@@ -109,7 +128,7 @@ func (d *mapDecoder) Decode(ctx *Context, cursor int, depth int64, rv reflect.Va
 			return 0, errors.DataTooShort()
 		}
 
-		v := reflect.New(d.valueType).Elem()
+		v.SetZero()
 		valueCursor, err := d.valueDecoder.Decode(ctx, cursor, depth, v)
 		if err != nil {
 			return 0, err
